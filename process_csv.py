@@ -156,6 +156,8 @@ def conv_mat_to_csv(loc,fname):
         inst = eval(file.read())
         file.close()
         print('instructions found')
+    else:
+        inst = dict()
 
     pressloc = loc + fname.replace(".mat","_pressinfo.csv")
     sessloc = loc + fname.replace(".mat","_sessinfo.csv")
