@@ -55,9 +55,12 @@ class press_data:
                 raise Exception(f"{key} is not valid")
         else:
             raise Exception(f"{type(key)} is an invalid type")
+    
+    #list of columns in pressinfo, includes index columns
     @property
     def columns(self):
         return list(self.press_info.columns) + list(self.press_info.index.names)
+        
     def _press_info_from_csv(self):
         inpd = pd.read_csv(self.press_dir)
         indexcols = inpd[['n_sess',"n_in_sess"]]
