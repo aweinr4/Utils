@@ -136,10 +136,6 @@ class press_data:
     #get all presses within a specific session
     def get_sess(self,n_sess):
         return self.press_info.loc[n_sess]
-        # if isinstance(n_sess,int):
-        #     n_sess = [n_sess]
-        # outval = self.press_info.loc[self['n_sess'].isin(n_sess)]
-        # return outval
 
     #change a target in sesion data
     def change_target(self,old,new,save = False):

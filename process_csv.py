@@ -17,8 +17,12 @@ class matlab_to_csv:
         self.sess_out = pd.DataFrame()
 
     def copy_press_cols(self,cols):
+        """directly copy columns from press in to press out"""
+
+        #allows user to input string or list of strings
         if isinstance(cols,str):
             cols = [cols]
+        
         for col in cols:
             if not col in self.press_out:
                 self.press_out[col] = self.press_in[col]
