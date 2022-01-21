@@ -3,7 +3,7 @@ from .simple import *
 import pandas as pd
 
 #this class is designed to make sorting through the press data files easier
-class press_data:
+class DataCrunch:
 
     #the initialization stores two dataframes in the class, one with information about specific presses and one with the general information of each session
     def __init__(self,press_info = "get",sess_info="get"):
