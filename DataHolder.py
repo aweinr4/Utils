@@ -352,27 +352,6 @@ class DataHolder:
         # format the output as a new pandas dataframe. 
         return pd.DataFrame(framedata, columns=['interval','tap_1_len', 'tap_2_len'])
 
-    def stats(self, stat, column):
-        """ Add a column of statistics about a column from presses
-    
-        Parameters
-        ----------
-        stat : str
-            statistic you want taken, can be mean,median,mode,max,min, or std
-
-        column : str
-            name of column from presses
-
-        Returns
-        -------
-        None
-
-        """
-
-        statcol = []
-        for i in self.set_of('')
-
-
     #overwrite the actual csv files so adjustments are saved for next time
     def overwrite_sess(self):
         self.sessions.to_csv(self.sess_dir,index = False)
