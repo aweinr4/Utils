@@ -1,11 +1,12 @@
 
 from .simple import *
 import pandas as pd
-#comment 1
-#this class is designed to make sorting through the press data files easier
-class DataHolder:
 
-    #the initialization stores two dataframes in the class, one with information about specific presses and one with the general information of each session
+
+class DataHolder:
+    """ Class for holding the rat press data files """
+
+
     def __init__(self, presses = "get", sessions = "get", dropafter = 0):
         """Initialization stores two dataframes in the class, one with information about specific presses 
         and one with the general information of each session. 
@@ -36,6 +37,7 @@ class DataHolder:
         # otherwise default value is 0 so the if statement will be false. 
         if dropafter != 0:
             self._drop_after(dropafter)
+
 
     def __getitem__(self,key):
         """ Python Internal. 
@@ -87,6 +89,7 @@ class DataHolder:
         else: # if the format of the key is none of the above
             raise Exception(f"{type(key)} is an invalid type")
     
+
     def _drop_after(self, drop):
         """ Internal Function. 
         Drops sessions from the data after the desired session number X. 
@@ -97,7 +100,8 @@ class DataHolder:
         self.sessions = self.sessions[self.sessions.index<=drop]
         # select the rows out of the press data where the number of the session is greater than drop value. 
         self.presses = self.presses[self["n_sess"]<=drop]
-        
+
+
     def _presses_from_csv(self):
         """ Internal Function. 
         Changes indexing method from arbitrary 0,1,2,3,etc to session and number within session. 
@@ -116,6 +120,7 @@ class DataHolder:
         if "time" in self.presses:
             self.presses['time'] = pd.to_datetime(self.presses['time'])
     
+
     def _sessions_from_csv(self):
         """ Internal Function. 
         Changes time column from strings to datetime objects. 
@@ -131,11 +136,6 @@ class DataHolder:
         # add one to the indicies to have indicies = session number 
         self.sessions.index+=1
 
-    @property
-    def columns(self):
-        """ Returns a list of all of the columns in the press data."""
-        # the n_sess and n_in_sess 'columns' are really indicies 
-        return list(self.presses.columns) + list(self.presses.index.names)
         
     def get_by_target(self,target,col =slice(None)):
         """ Returns all of the presses that have a particular target. 
@@ -275,6 +275,13 @@ class DataHolder:
             self.overwrite_sess()
 
 
+    @property
+    def columns(self):
+        """ Returns a list of all of the columns in the press data."""
+        # the n_sess and n_in_sess 'columns' are really indicies 
+        return list(self.presses.columns) + list(self.presses.index.names)
+
+
     def FindStats(self): 
         """ Function to find the minimum, maximum, average, and standard deviation for the 
         interpress intervals of each session. Columns are added to the sessions dataframe."""
@@ -316,6 +323,7 @@ class DataHolder:
         self.sessions['avg'] = framedata[0:,2]
         self.sessions['sdev'] = framedata[0:,3]
     
+
     def AvgTaps(self):
         """ Outputs a data frame with the average tap lengths and intervals for each session"""
         #self.presses[["interval","tap_1_len","tap_2_len"]]
@@ -351,6 +359,56 @@ class DataHolder:
 
         # format the output as a new pandas dataframe. 
         return pd.DataFrame(framedata, columns=['interval','tap_1_len', 'tap_2_len'])
+
+    def PercentDiff(self): 
+        """ Function to pull the target ipi, actual ipi, and percent difference 
+        from the target for each press within the sessions.
+        Output is a dataframe with target ipi/ ipi/ %difference columns with length of the number of trials."""
+        # pull the target ipi from the sessionlist and add another column to the presslist dataframe. 
+        # this is because the target ipi will vary depending on the session. 
+
+        data = self.presses[["n_sess","interval","ratio","loss"]]
+        return data 
+
+
+    def AllTargets(self):
+        """ Outputs a dataframe with the target ipi for every trial. 
+        Used for plotting purposes. """
+        # initialize the framedata array 
+        framedata = []
+        # make a dataframe for the targets for every press trial. 
+        for i in range(1, self.session.shape[0]+1):
+            # pull the target from the session dataframe
+            # find the row with the index the same as i, and pull target from it 
+            # convert that to numpy, and then take the 0th item (there is only one item) 
+            target = ((self.session[self.session.index==i]['target']).to_numpy())[0]
+            data = self.presses[self.presses["n_sess"]==i]
+            # make a numpy array the length of the number of trials in the session
+            # with the values being the target interval of that session. 
+            targets = np.full(data.shape[0], target)
+
+            # append each session's data to the frame 
+            framedata = np.append(framedata, targets, axis=0)
+
+        targetframe = pd.DataFrame(framedata, columns=['target'])
+
+        # Return the data and the target frame
+        return targetframe
+
+    def SessionTargets(self):
+        """ Outputs a dataframe with the target ipi for every session. 
+        Used for plotting purposes. """
+        return self.session["target"]
+
+    def Taps(self): 
+        """ Outputs a data frame with the tap lengths and interval for each trial"""
+        return self.presses[["interval","tap_1_len","tap_2_len"]]
+
+
+    def Success(self, error):
+        """ Gives a dataframe with the number of successes in each session where the trial IPI was 
+        +- error % away from the target IPI. """
+
 
     #overwrite the actual csv files so adjustments are saved for next time
     def overwrite_sess(self):

@@ -1,3 +1,6 @@
+# 21 January 2022 
+# Maegan Jennings, Ozzy Weinreb 
+
 import matplotlib.pyplot as plt 
 import numpy as np 
 import pandas as pd 
