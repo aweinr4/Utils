@@ -1,7 +1,6 @@
 
 from .simple import *
 import pandas as pd
-#comment 1
 #this class is designed to make sorting through the press data files easier
 class DataHolder:
 
@@ -370,7 +369,16 @@ class DataHolder:
         """
 
         statcol = []
-        for i in self.set_of('')
+        for i in self.sessions.index:
+            try:
+                row = self.get_sess(i)[column].to_numpy()
+                statcol.append(eval(f"row.{stat}()"))
+            except KeyError:
+                statcol.append(pd.NA)
+        self.sessions[column + "_" + stat] = statcol
+            
+
+
 
 
     #overwrite the actual csv files so adjustments are saved for next time
