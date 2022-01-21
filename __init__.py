@@ -1,2 +1,2 @@
 
-__all__ = ['press_data','simple']
+__all__ = ['DataHolder','simple','plot']
