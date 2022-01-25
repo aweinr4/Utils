@@ -133,6 +133,9 @@ class DataHolder:
         indexlist = [len(presslist.loc[0:i]) for i in sesslist]
         return (sesslist,indexlist)
 
+    @property
+    def columns(self):
+        return list(self.presses.columns) + list(self.presses.index.names)
         
     def get_by_target(self,target,col =slice(None)):
         """ Returns all of the presses that have a particular target. 
