@@ -208,17 +208,17 @@ class DataHolder:
         
         Parameters 
         ----
-        press_conditions : string 
-            String of conditions for the presses. Operates on the columns of the presses csv.
+        press_conditions : string,optional
+            String of conditions for the presses. Operates on the columns of the presses csv. Defaults to all sessions.
 
         sess_conditions : string 
-            String of conditions for the sessions. Operates on the columns of the session csv.
+            String of conditions for the sessions. Operates on the columns of the session csv. Defaults to all presses.
 
-        column : string 
-            String for the column name desired.  
+        column : string,optional 
+            String for the column name desired. Defaults to all columns.
 
-        return_starts : 
-            ? 
+        return_starts : boolean
+            Returns the index numbers for the start of each session within the returned dataframe
 
         Returns
         ---
@@ -250,22 +250,73 @@ class DataHolder:
         return outval
 
 
-
-
-    #get first press that matches specific criteria
     def get_first_press(self,press_conditions = 'slice(None)',sess_conditions = 'slice(None)'):
+        """ Get the row of the first press that matches specific criteria
+        
+        Parameters 
+        ----
+        None
+
+        Returns
+        ---
+        outval : series
+        """
         return self.press_is(press_conditions=press_conditions,sess_conditions=sess_conditions).iloc[0]
 
-    #get the information about a specific session        
-    def get_sess_params(self,n,col = slice(None)):
+       
+    def get_sess_params(self, n, col = slice(None)):
+        """ Get the paramaters for a specific session
+        
+        Parameters 
+        ----
+        n : int
+            number of session
+        
+        col : str, optional
+            specific column if desired
+
+        Returns
+        ---
+        outval : series
+            row for the requestion session
+        """
         return self.sessions.loc[n,col]
 
-    #get all presses within a specific session
-    def get_sess(self,n_sess):
+
+    def get_sess(self, n_sess):
+        """ Get all presses within a particular session
+        
+        Parameters 
+        ----
+        n_sess : int
+            number of session
+
+        Returns
+        ---
+        outval : dataframe
+            all presses within the requested session
+        """
         return self.presses.loc[n_sess]
 
-    #change a target in sesion data
-    def change_target(self,old,new,save = False):
+
+    def change_target(self, old, new, save = False):
+        """ change the target interval wherever it appears
+        
+        Parameters 
+        ----
+        old : int
+            value of interval to be changed
+
+        new : int
+            value of new interval
+        
+        save : boolean
+            wether or not to permenantly change csv. Default is false.
+
+        Returns
+        ---
+        none
+        """
         targets = []
         for i in self.sessions['target']:
             if i==old:
@@ -277,12 +328,32 @@ class DataHolder:
         if save:
             self.overwrite_sess()
     
-    #delete a session
-    def drop_sess(self,n,save = False):
+
+    def drop_sess(self, n, save = False):
+        """ delete a session
+        
+        Parameters 
+        ----
+        n : int or list
+            number or list of numbers of sessions to be deleted
+        
+        save : boolean
+            wether or not to permenantly change csv. Default is false.
+
+        Returns
+        ---
+        none
+        """
+
+        #if integer, insert it into a list, this allows interger or list as input
         if isinstance(n,int):
             n = [n]
+        
+        #iterate through list of n values
         for i in n:
+            #delete all presses within that session
             self.presses = self.presses.loc[~(self.presses.index.get_level_values(0)==i)]
+            #delete that sessions
             self.sessions.drop(i,inplace = True)
 
         if save:
@@ -405,10 +476,30 @@ class DataHolder:
         # return the dataframe.
         return df
 
-    #overwrite the actual csv files so adjustments are saved for next time
+
     def overwrite_sess(self):
+        """ overwrite the session csv using the location given when the class was instantiated
+        
+        Parameters 
+        ----
+        none
+
+        Returns
+        ---
+        none
+        """
         self.sessions.to_csv(self.sess_dir)
 
-    #not working at the moment, need to account for indexing method
+
     def overwrite_press(self):
+        """ overwrite the presses csv using the location given when the class was instantiated
+        
+        Parameters 
+        ----
+        none
+
+        Returns
+        ---
+        none
+        """
         self.presses.to_csv(self.press_dir)
