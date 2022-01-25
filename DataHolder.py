@@ -257,7 +257,7 @@ class DataHolder:
             n = [n]
         for i in n:
             self.presses = self.presses.loc[~(self.presses.index.get_level_values(0)==i)]
-            self.sessions.drop[i]
+            self.sessions.drop(i)
 
         if save:
             self.overwrite_press()
