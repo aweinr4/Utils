@@ -463,6 +463,3 @@ class DataHolder:
     #not working at the moment, need to account for indexing method
     def overwrite_press(self):
         self.presses.to_csv(self.press_dir)
-        
-    
-# %%
