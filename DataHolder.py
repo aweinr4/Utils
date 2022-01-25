@@ -120,11 +120,18 @@ class DataHolder:
         Changes time column from strings to datetime objects. 
          """
         # Import csv
-        self.sessions = pd.read_csv(self.sess_dir,index_col='n_sess')
+        self.sessions = pd.read_csv(self.sess_dir, index_col='n_sess')
         # checks to see if there is a time column, 
         # if so, replace string dates to datetime objects
         if 'starttime' in self.sessions:
             self.sessions['starttime'] = pd.to_datetime(self.sessions['starttime'])
+
+
+        #return index of first press in each session within a list of presses
+    def _sess_start_indices(self,presslist):
+        sesslist = np.sort(list(set(presslist.index.get_level_values(0))))
+        indexlist = [len(presslist.loc[0:i]) for i in sesslist]
+        return (sesslist,indexlist)
 
         
     def get_by_target(self,target,col =slice(None)):
@@ -193,8 +200,28 @@ class DataHolder:
         # use pandas to apply formated conditional string and extract sessions
         return self.sessions.loc[eval(conditional_string)]
 
-    #get all presses that match specific criteria
-    def press_is(self,press_conditions = 'slice(None)',sess_conditions = 'slice(None)',column = slice(None),return_starts = False):
+    def press_is(self, press_conditions = 'slice(None)', sess_conditions = 'slice(None)', column = slice(None), return_starts = False):
+        """ Get all presses that mach specific criteria
+        
+        Parameters 
+        ----
+        press_conditions : string 
+            String of conditions for the presses. Operates on the columns of the presses csv.
+
+        sess_conditions : string 
+            String of conditions for the sessions. Operates on the columns of the session csv.
+
+        column : string 
+            String for the column name desired.  
+
+        return_starts : 
+            ? 
+
+        Returns
+        ---
+        outval : dataframe
+            Dataframe with only the data that matches the input criteria.
+        """
         #get indices of all sessions that match session criteria
         sess_indices = np.sort(list(set(self.sess_is(sess_conditions).index) & set([i[0] for i in self.presses.index])))
 
@@ -219,11 +246,6 @@ class DataHolder:
             outval = (outval,starts)
         return outval
 
-    #return index of first press in each session within a list of presses
-    def _sess_start_indices(self,presslist):
-        sesslist = np.sort(list(set(presslist.index.get_level_values(0))))
-        indexlist = [len(presslist.loc[0:i]) for i in sesslist]
-        return (sesslist,indexlist)
 
 
 
@@ -314,7 +336,7 @@ class DataHolder:
         # initialize the framedata array 
         framedata = []
         # make a dataframe for the targets for every press trial. 
-        for i in range(1, self.sessions.shape[0]+1):
+        for i in range(1, self.sessions.shape[0]+1): 
             # pull the target from the session dataframe
             # find the row with the index the same as i, and pull target from it 
             # convert that to numpy, and then take the 0th item (there is only one item) 
@@ -379,8 +401,6 @@ class DataHolder:
 
         # return the dataframe.
         return df
-
-
 
     #overwrite the actual csv files so adjustments are saved for next time
     def overwrite_sess(self):

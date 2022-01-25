@@ -1,10 +1,6 @@
 from datetime import timedelta
-import sys
-import os
-sys.path.append('c:\\Users\\Wolff_Lab\\Ozzy\\Python\\Human_Data_Analysis')
 
-
-from Utils.simple import OrdToDate
+from .simple import OrdToDate
 import pandas as pd
 import numpy as np
 
