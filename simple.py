@@ -29,7 +29,7 @@ def rndnt(n):
     return int(np.floor(n+0.5))
 
 #returns closest integer rounding up
-def cnt(n):
+def ceil(n):
     return int(np.ceil(n))
 
 #closest integer rounding down

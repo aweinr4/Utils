@@ -251,7 +251,6 @@ class DataHolder:
 
 
 
-
     #get first press that matches specific criteria
     def get_first_press(self,press_conditions = 'slice(None)',sess_conditions = 'slice(None)'):
         return self.press_is(press_conditions=press_conditions,sess_conditions=sess_conditions).iloc[0]
@@ -400,10 +399,10 @@ class DataHolder:
         df = pd.DataFrame(success, columns = ['NumSuccess'])
         # use the pandas built-in 'rolling' to calculate the moving average. 
         # and add a column to the dataframe with the moving averages. 
-        df['MovingAvg'] = df.rolling(avgwindow, min_periods=1).mean()
-
-        # return the dataframe.
-        return df
+        movingavg = df.rolling(avgwindow, min_periods=1).mean()
+        avgs = movingavg.to_numpy()
+        # return the two numpy lists. 
+        return success, avgs
 
     #overwrite the actual csv files so adjustments are saved for next time
     def overwrite_sess(self):

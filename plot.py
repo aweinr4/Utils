@@ -8,8 +8,9 @@ import scipy as sc
 import datetime
 from scipy import stats
 from .DataHolder import DataHolder
+from .simple import ceil
 
-class Plotters:
+class PlotSingle:
 
     def __init__(self, ratdata, ratname):
         """ Class for graphs! 
@@ -113,4 +114,68 @@ class Plotters:
         plt.ylabel('Number of trials within {0}% of target IPI'.format(error))
         plt.title('{0} Success Rate'.format(self.rattitle))
         plt.legend()
+        plt.show()
+
+
+class PlotMultiple:
+
+    def __init__(self, rats, ratnames):
+        """ Class for graphs! 
+        
+        Parameters 
+        ---- 
+        rats : list 
+            List of the of the object returned from the DataHolder(presses, session) class
+        ratnames : list
+            List of the names of the rat to be displayed on the plots. 
+        """
+
+        self.rat = rats
+        self.ratname = ratnames
+
+
+    def SuccessRate(self, error = 20, window = 5, width = 5, height = 3):
+        """ Returns a plot with number of trials in each session where the IPI was within +-X % 
+        of the target IPI. 
+        
+        Parameters 
+        ---- 
+        error : int
+            Whole number value of the percentage bounds. 
+            ex. 10% is 'error = 10'. Default is +-20%
+        avgwindow : int
+            The number of sessions that should be used to calculate the moving average. 
+            Default is a window of 5 
+        width : int
+            Preset width for one graph 
+        height : int
+            Preset height for one graph
+        
+        Returns
+        --- 
+        unnamed : matplotlib plot
+        """
+        # the number of graphs needed is the number of rats inputted. 
+        num = len(self.rat)
+        # use a grid determined by the integer above the square root of the 
+        # number of rats -> 5 rats will be a 3x3 grid. 
+        grid = ceil(np.sqrt(num)) 
+        # define the structure of the figure 
+        fig, axs = plt.subplots(grid, grid, figsize = (width*grid, height*grid) )
+
+        # for each of the rats, 
+        for ax, i in zip(axs.flat, range(num)): 
+            # find the data of the rat using the success function
+            success, avgs = (self.rat[i]).Success(error, avgwindow = window)
+            target = (self.rat[i]).SessionTargets()
+            # define the name of the rat for later
+            ratname = self.ratname[i]
+            trials = range(1,len(target)+1)
+            ax.scatter(trials, success, label="Successes")
+            ax.plot(trials, avgs, '-k', label="Moving Avg of {0} Sessions".format(window))
+            ax.set_xlabel('Session Number')
+            ax.set_ylabel('Number of trials within {0}% of target IPI'.format(error))
+            ax.set_title('{0} Success Rate'.format(ratname))
+            ax.legend()
+
         plt.show()
