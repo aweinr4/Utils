@@ -284,9 +284,20 @@ class DataHolder:
 
     def FindStats(self): 
         """ Function to find the minimum, maximum, average, and standard deviation for the 
-        interpress intervals of each session. Columns are added to the sessions dataframe."""
+        interpress intervals of each session. Columns are added to the sessions dataframe.
+    
+        Parameters
+        ---
+        None 
+
+        Returns
+        ---
+        None
+        """
+
+        """ """
         # create a null framedata so the np.append later works correctly. 
-        framedata = [[0,0,0,0,0,0,0]]
+        framedata = [[0,0,0,0]]
         # sessionlist.shape[0] gives the number of sessions there were starting at 0
         # But there is no session zero, so range from 1 to shape[0]+1
         for i in range(1, self.sessions.shape[0]+1):
@@ -317,7 +328,7 @@ class DataHolder:
         # once the frame is fully constructed, drop the null framedata entry 
         framedata = framedata[1::]
 
-        #add columns in sessions for min,max,avg and sdev
+        #add columns in sessions for min, max, avg and sdev
         self.sessions['min'] = framedata[0:,0]
         self.sessions['max'] = framedata[0:,1]
         self.sessions['avg'] = framedata[0:,2]
@@ -377,11 +388,11 @@ class DataHolder:
         # initialize the framedata array 
         framedata = []
         # make a dataframe for the targets for every press trial. 
-        for i in range(1, self.session.shape[0]+1):
+        for i in range(1, self.sessions.shape[0]+1):
             # pull the target from the session dataframe
             # find the row with the index the same as i, and pull target from it 
             # convert that to numpy, and then take the 0th item (there is only one item) 
-            target = ((self.session[self.session.index==i]['target']).to_numpy())[0]
+            target = ((self.sessions[self.sessions.index==i]['target']).to_numpy())[0]
             data = self.presses[self.presses["n_sess"]==i]
             # make a numpy array the length of the number of trials in the session
             # with the values being the target interval of that session. 
@@ -398,16 +409,51 @@ class DataHolder:
     def SessionTargets(self):
         """ Outputs a dataframe with the target ipi for every session. 
         Used for plotting purposes. """
-        return self.session["target"]
+        return self.sessions["target"]
 
     def Taps(self): 
         """ Outputs a data frame with the tap lengths and interval for each trial"""
         return self.presses[["interval","tap_1_len","tap_2_len"]]
 
 
-    def Success(self, error):
-        """ Gives a dataframe with the number of successes in each session where the trial IPI was 
-        +- error % away from the target IPI. """
+    def Success(self, error, avgwindow = 5):
+        """ Returns an array with the number of successes in each session where the trial IPI was 
+        +- error % away from the target IPI. 
+        
+        Parameters 
+        -------
+        error : int
+            The numerical value of the percentage bounds from target desired. 
+        avgwindow : int
+            The number of sessions that should be used to calculate the moving average. 
+            Default is a window of 5 
+        
+        Returns 
+        ------
+        successes : dataframe
+            Contains the number of succcesses for each session and the moving average of successes. 
+
+        """
+        # create blank array for the session successes. 
+        success = [] 
+        # iterate through all of the sessions 
+        for i in range(1, self.sessions.shape[0]+1):
+            # error in the csv is in decimal form, so convert to upper and lower bounds. 
+            upper = error/100 
+            lower = -error/100
+            # pull out a dataframe of the sessions that are between the bounds for each session i 
+            data = self.press_is(press_conditions = f'(loss <= {upper}) & (loss >= {lower}) & (n_sess == {i})')
+            # append the number of successes for that session
+            success.append(data.shape[0])
+        # create a new dataframe with the successes
+        df = pd.DataFrame(success, columns = ['NumSuccess'])
+        # use the pandas built-in 'rolling' to calculate the moving average. 
+        # and add a column to the dataframe with the moving averages. 
+        df['MovingAvg'] = df.rolling(avgwindow, min_periods=1).mean()
+
+        # return the dataframe.
+        return df
+
 
 
     #overwrite the actual csv files so adjustments are saved for next time
@@ -419,3 +465,4 @@ class DataHolder:
         self.presses.to_csv(self.press_dir)
         
     
+# %%
