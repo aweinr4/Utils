@@ -1,7 +1,6 @@
 
 from .simple import *
 import pandas as pd
-#comment 1
 #this class is designed to make sorting through the press data files easier
 class DataHolder:
 
@@ -103,14 +102,8 @@ class DataHolder:
         Changes indexing method from arbitrary 0,1,2,3,etc to session and number within session. 
         Drops "n_sess" and "n_in_sess" columns and creates two indexing columns titled the same. 
         Changes time column from strings to datetime objects """
-        # Import csv 
-        inpd = pd.read_csv(self.press_dir)
-        # new dataframe with columns "n_sess" and "n_in_sess"
-        indexcols = inpd[['n_sess',"n_in_sess"]]
-        # drop columns "n_sess" and "n_in_sess" from og dataframe
-        self.presses = inpd.drop(['n_sess','n_in_sess'],axis=1)
-        # changes the index of og dataframe to columns "n_sess" and "n_in_sess"
-        self.presses.index = pd.MultiIndex.from_frame(indexcols)
+        # Import csv, make n_sess and n_in_sess columns as index
+        self.presses = pd.read_csv(self.press_dir,index_col=['n_sess','n_in_sess'])
         # checks to see if there is a time column, 
         # if so, replace string dates to datetime objects
         if "time" in self.presses:
@@ -119,17 +112,13 @@ class DataHolder:
     def _sessions_from_csv(self):
         """ Internal Function. 
         Changes time column from strings to datetime objects. 
-        Increments the indicies to have indicies = session number """
+         """
         # Import csv
-        inpd = pd.read_csv(self.sess_dir)
+        self.sessions = pd.read_csv(self.sess_dir,index_col='n_sess')
         # checks to see if there is a time column, 
         # if so, replace string dates to datetime objects
-        if 'starttime' in inpd:
-            inpd['starttime'] = pd.to_datetime(inpd['starttime'])
-        # pandas is weird, so make a copy of og dataframe. 
-        self.sessions = inpd.copy()
-        # add one to the indicies to have indicies = session number 
-        self.sessions.index+=1
+        if 'starttime' in self.sessions:
+            self.sessions['starttime'] = pd.to_datetime(self.sessions['starttime'])
 
     @property
     def columns(self):
@@ -268,93 +257,48 @@ class DataHolder:
             n = [n]
         for i in n:
             self.presses = self.presses.loc[~(self.presses.index.get_level_values(0)==i)]
-            self.sessions.loc[i]['sess_size'] = 0
+            self.sessions.drop(i)
 
         if save:
             self.overwrite_press()
             self.overwrite_sess()
 
-
-    def FindStats(self): 
-        """ Function to find the minimum, maximum, average, and standard deviation for the 
-        interpress intervals of each session. Columns are added to the sessions dataframe."""
-        # create a null framedata so the np.append later works correctly. 
-        framedata = [[0,0,0,0,0,0,0]]
-        # sessionlist.shape[0] gives the number of sessions there were starting at 0
-        # But there is no session zero, so range from 1 to shape[0]+1
-        for i in range(1, self.sessions.shape[0]+1):
-            # find the rows within the dataframe that have the session number of the current iteration
-            # create a new smaller dataframe with only that data ^^^ 
-            data = self.get_sess(i)
-            # some of the sessions are empty due to NaN rat presses,
-            # filters for only sessions that aren't empty. 
-            if not data.empty:
-                # reassign the dataframe to be only a list of the interpress interval 
-                # for each trial within the current session number
-                data = data['interval'] 
-
-                # change the pandas dataframe to a numpy array for the min/max analysis 
-                intervals = data.to_numpy()
-                # min, max, avg, and sdev 
-                min = intervals.min()
-                max = intervals.max()
-                avg = intervals.mean()
-                sdev = intervals.std()
-
-                # format the data into an array 
-                neu_data = np.array([min, max, avg, sdev], dtype=object)
-
-                # append each session's data to the frame 
-                framedata = np.append(framedata, [neu_data], axis=0)
-
-        # once the frame is fully constructed, drop the null framedata entry 
-        framedata = framedata[1::]
-
-        #add columns in sessions for min,max,avg and sdev
-        self.sessions['min'] = framedata[0:,0]
-        self.sessions['max'] = framedata[0:,1]
-        self.sessions['avg'] = framedata[0:,2]
-        self.sessions['sdev'] = framedata[0:,3]
+    def stats(self, stat, column, save = False):
+        """ Add a column of statistics about a column from presses
     
-    def AvgTaps(self):
-        """ Outputs a data frame with the average tap lengths and intervals for each session"""
-        #self.presses[["interval","tap_1_len","tap_2_len"]]
+        Parameters
+        ----------
+        stat : str
+            statistic you want taken, can be mean,median,mode,max,min, or std
 
-        framedata = [[0,0,0]]
-        # sessionlist.shape[0] gives the number of sessions there were starting at 0
-        # But there is no session zero, so range from 1 to shape[0]+1
-        for i in range(1, self.sessions.shape[0]+1):
-            # find the rows within the dataframe that have the session number of the current iteration
-            # create a new smaller dataframe with only that data ^^^ 
-            data = self.get_sess(i)
-            # some of the sessions are empty due to NaN rat presses,
-            # filters for only sessions that aren't empty. 
-            if not data.empty:
-                # pull the interval, tap1 and tap2 info out of the dataframe, 
-                interval = (data['interval']).to_numpy()
-                tap1 = (data['tap_1_len']).to_numpy()
-                tap2 = (data['tap_2_len']).to_numpy()
+        column : str
+            name of column from presses
 
-                # average the values,
-                interval = interval.mean()
-                tap1 = tap1.mean()
-                tap2 = tap2.mean()
+        save: Boolean, optional
+            wether or not to overwrite the csv
 
-                # format the data into an array 
-                neu_data = np.array([interval, tap1, tap2], dtype=object)
+        Returns
+        -------
+        None
 
-                # append each session's data to the frame 
-                framedata = np.append(framedata, [neu_data], axis=0)
+        """
 
-        # once the frame is fully constructed, drop the null framedata entry 
-        framedata = framedata[1::]
+        statcol = []
+        for i in self.sessions.index:
+            try:
+                row = self.get_sess(i)[column].to_numpy()
+                statcol.append(eval(f"row.{stat}()"))
+            except KeyError:
+                statcol.append(pd.NA)
+        self.sessions[column + "_" + stat] = statcol
 
-        # format the output as a new pandas dataframe. 
-        return pd.DataFrame(framedata, columns=['interval','tap_1_len', 'tap_2_len'])
+        if save:
+            self.overwrite_press()
+
 
     #overwrite the actual csv files so adjustments are saved for next time
     def overwrite_sess(self):
-        self.sessions.to_csv(self.sess_dir,index = False)
+        self.sessions.to_csv(self.sess_dir)
 
     #not working at the moment, need to account for indexing method
     def overwrite_press(self):

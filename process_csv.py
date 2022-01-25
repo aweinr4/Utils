@@ -119,7 +119,7 @@ class matlab_to_csv:
         if isinstance(ns,int):
             ns = [ns]
         for n in ns:
-            self.sess_out.at[n-1,'sess_size'] = 0
+            self.sess_out.drop(n-1,inplace=True)
             self.press_out = self.press_out.loc[~(self.press_out['n_sess']==n)]
 
     #change a target in sesion data
@@ -146,7 +146,8 @@ class matlab_to_csv:
         self.press_out.to_csv(pressloc,index = False)
     
     def save_sess(self,sessloc):
-        self.sess_out.to_csv(sessloc,index = False)
+        self.sess_out.index+=1
+        self.sess_out.to_csv(sessloc,index_label = 'n_sess')
 
 
 
