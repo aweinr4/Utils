@@ -36,10 +36,14 @@ class PlotSingle:
         ---- 
         unnamed : matplotlib plot 
         """
-        taps = self.rat.AvgTaps()
+        # add the average interpress interval to the sessions data and pull it 
+        self.rat.stats("mean", "interval")
+        interval = self.rat.sessions["interval_mean"]
+        # add the average tap 1 length to the sessions data and pull it 
+        self.rat.stats("mean", "tap_1_len")
+        tap1 = self.rat.sessions["tap_1_len_mean"] 
+        # Pull the session targets. 
         target = self.rat.SessionTargets()
-        interval = (taps["interval"]).to_numpy()
-        tap1 = (taps["tap_1_len"]).to_numpy()
         trials = range(1,len(tap1)+1)
 
         plt.style.use('default')
@@ -66,7 +70,7 @@ class PlotSingle:
         """
 
         taps = self.rat.AvgTaps()
-        target = self.rat.SessionTargets()
+        target = self.rat.AllTargets()
         interval = (taps["interval"]).to_numpy()
         tap2 = (taps["tap_2_len"]).to_numpy()
         trials = range(1,len(tap2)+1)
@@ -82,7 +86,7 @@ class PlotSingle:
         plt.show()
 
 
-    def SuccessRate(self, error = 20, window = 5):
+    def S_SuccessRate(self, error = 20, window = 5):
         """ Returns a plot with number of trials in each session where the IPI was within +-X % 
         of the target IPI. 
         
@@ -99,11 +103,9 @@ class PlotSingle:
         --- 
         unnamed : matplotlib plot
         """
-        data = self.rat.Success(error, avgwindow = window)
-        # pull out the successes and convert to numpy
-        success = (data['NumSuccess']).to_numpy()
-        # pull out the moving average and convert to numpy 
-        avgs = (data['MovingAvg']).to_numpy()
+        # get the success & averaged success from the data
+        success, avgs = self.rat.SessionSuccess(error, avgwindow = window)
+        # pull the targets for each session
         target = self.rat.SessionTargets()
         trials = range(1,len(target)+1)
 
@@ -115,6 +117,38 @@ class PlotSingle:
         plt.title('{0} Success Rate'.format(self.rattitle))
         plt.legend()
         plt.show()
+
+
+    def T_SuccessRate(self, error = 20, window = 100):
+        """ Returns a plot with number of trials where the IPI was within +-X % of the target IPI. 
+        
+        Parameters 
+        ---- 
+        error : int
+            Whole number value of the percentage bounds. 
+            ex. 10% is 'error = 10'. Default is +-20%
+        avgwindow : int
+            The number of sessions that should be used to calculate the moving average. 
+            Default is a window of 5 
+        
+        Returns
+        --- 
+        unnamed : matplotlib plot
+        """
+
+        avgs = self.rat.TrialSuccess(error, avgwindow = window)
+        target = self.rat.TrialTargets()
+        trials = range(1,len(target)+1)
+
+        plt.style.use('default')
+        plt.plot(trials, avgs, '-k', label="Moving Avg of {0} Trials".format(window))
+        plt.xlabel('Trial Number')
+        plt.ylabel('Percent of trials within {0}% of target IPI'.format(error))
+        plt.title('{0} Trial Success Rate'.format(self.rattitle))
+        plt.ylim([0,100])
+        plt.legend()
+        plt.show()
+
 
 
 class PlotMultiple:
@@ -133,8 +167,58 @@ class PlotMultiple:
         self.rat = rats
         self.ratname = ratnames
 
+    def T_SuccessRate(self, error = 20, window = 100, width = 7, height = 5):
+        """ Returns a plot with number of trials where the IPI was within +-X % of the target IPI. 
+        
+        Parameters 
+        ---- 
+        error : int
+            Whole number value of the percentage bounds. 
+            ex. 10% is 'error = 10'. Default is +-20%
+        avgwindow : int
+            The number of sessions that should be used to calculate the moving average. 
+            Default is a window of 5 
+        width : int
+            Preset width for one graph 
+        height : int
+            Preset height for one graph
+        
+        Returns
+        --- 
+        unnamed : matplotlib plot
+        """
+        # the number of graphs needed is the number of rats inputted. 
+        num = len(self.rat)
+        # use a grid determined by the integer above the square root of the 
+        # number of rats -> 5 rats will be a 3x3 grid. 
+        grid = ceil(np.sqrt(num)) 
+        
+        # for each of the rats, 
+        with plt.style.context('default'):
+        # define the structure of the figure 
+            fig, axs = plt.subplots(grid, grid, figsize = (width*grid, height*grid) )
+            for ax, i in zip(axs.flat, range(num)): 
+                # find the data of the rat using the success function
+                avgs = (self.rat[i]).TrialSuccess(error, avgwindow = window)
+                target = (self.rat[i]).TrialTargets()
+                # define the name of the rat for later
+                ratname = self.ratname[i]
+                trials = range(1,len(target)+1)
 
-    def SuccessRate(self, error = 20, window = 5, width = 5, height = 3):
+                ax.plot(trials, avgs, '-k', label="Moving Avg of {0} Trials".format(window))
+
+                ax.set_xlabel('Trial Number')
+                ax.set_ylabel('Percent of trials within {0}% of target IPI'.format(error))
+                ax.set_title('{0} Trial Success Rate'.format(ratname))
+                ax.set_ylim([0,100])
+                ax.legend()
+
+        # change the spacing between the plots for more room for the labels. 
+        plt.subplots_adjust(wspace = 0.25, hspace = 0.25)
+        # show the plot
+        plt.show()
+
+    def S_SuccessRate(self, error = 20, window = 5, width = 7, height = 5):
         """ Returns a plot with number of trials in each session where the IPI was within +-X % 
         of the target IPI. 
         
@@ -160,22 +244,28 @@ class PlotMultiple:
         # use a grid determined by the integer above the square root of the 
         # number of rats -> 5 rats will be a 3x3 grid. 
         grid = ceil(np.sqrt(num)) 
-        # define the structure of the figure 
-        fig, axs = plt.subplots(grid, grid, figsize = (width*grid, height*grid) )
+        
 
         # for each of the rats, 
-        for ax, i in zip(axs.flat, range(num)): 
-            # find the data of the rat using the success function
-            success, avgs = (self.rat[i]).Success(error, avgwindow = window)
-            target = (self.rat[i]).SessionTargets()
-            # define the name of the rat for later
-            ratname = self.ratname[i]
-            trials = range(1,len(target)+1)
-            ax.scatter(trials, success, label="Successes")
-            ax.plot(trials, avgs, '-k', label="Moving Avg of {0} Sessions".format(window))
-            ax.set_xlabel('Session Number')
-            ax.set_ylabel('Number of trials within {0}% of target IPI'.format(error))
-            ax.set_title('{0} Success Rate'.format(ratname))
-            ax.legend()
+        with plt.style.context('default'):
+        # define the structure of the figure 
+            fig, axs = plt.subplots(grid, grid, figsize = (width*grid, height*grid) )
+            for ax, i in zip(axs.flat, range(num)): 
+                # find the data of the rat using the success function
+                success, avgs = (self.rat[i]).SessionSuccess(error, avgwindow = window)
+                target = (self.rat[i]).SessionTargets()
+                # define the name of the rat for later
+                ratname = self.ratname[i]
+                trials = range(1,len(target)+1)
+                ax.scatter(trials, success, label="Successes")
+                ax.plot(trials, avgs, '-k', label="Moving Avg of {0} Sessions".format(window))
+                ax.set_xlabel('Session Number')
+                ax.set_ylabel('Percent of trials within {0}% of target IPI'.format(error))
+                ax.set_title('{0} Session Success Rate'.format(ratname))
+                ax.set_ylim([0,100])
+                ax.legend()
 
+        # change the spacing between the plots for more room for the labels. 
+        plt.subplots_adjust(wspace = 0.25, hspace = 0.25)
+        # show the plot
         plt.show()

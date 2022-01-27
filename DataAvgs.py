@@ -3,33 +3,46 @@ from .simple import *
 import pandas as pd
 
 
-class DataHolder:
-    """ Class for holding the rat press data files """
+class DataAvgs:
+    """ Class for inputting multiple rat press data files """
 
 
     def __init__(self, presses = "get", sessions = "get", dropafter = 0):
         """Initialization stores two dataframes in the class, one with information about specific presses 
         and one with the general information of each session. 
-        If there is a drop after argument, all of the sessions after that number will be dropped 
-        from the output array. """
 
-        # If the initialization of the class is left blank, 
-        # open a file dialog to make the user chose the press info file. 
-        if presses == "get":
-            self.press_dir = get_file()
-        # If the user already indicated a file, use it.
-        else:
+        Parameters
+        --- 
+        presses : list
+            List of csv files with all of the press data. 
+        sessions : list
+            List of csv file with all of the session data
+            NEEDS to to be in the same order as the press data. 
+        dropafter : list 
+            List of numerical values of the session after which the data needs to be dropped. 
+            NEEDs to be in the same order as press data. 
+        
+        Returns
+        --- 
+        None? Creates an object. 
+        """
+
+        # make sure that the user has indicated multiple files to use for the presses. 
+        if isinstance(presses, tuple):
             self.press_dir = presses
-
-        # If the initialization of the class is left blank, 
-        # open a file dialog to make the user chose the press info file.
-        if sessions == "get":
-            self.sess_dir = get_file()
-        # If the user already indicated a file, use it.
         else:
+            raise SyntaxError("DataAvgs expects multiple input files for presses")
+        
+        # make sure the user has indicated multiple files to use for the sessions. 
+        if isinstance(sessions, tuple):
             self.sess_dir = sessions
+        else:
+            raise SyntaxError("DataAvgs expects multiple input files for sessions")
 
-        # do preprocessing of the dataframes. 
+        # if a drop-after argument has been included, the sessions after those values need to be 
+        # dropped before we can move on to averaging. 
+
+        # pull the csv into a list of dataframes. 
         self._presses_from_csv()
         self._sessions_from_csv()
 
@@ -90,6 +103,35 @@ class DataHolder:
             raise Exception(f"{type(key)} is an invalid type")
     
 
+    def _presses_from_csv(self):
+        """ Internal Function. 
+        Pulls the press data from csv form into a list of dataframes. """
+        # make blank arrays for the presses
+        self.pressframes = []
+
+        # for each press file given,
+        for press in self.press_dir:
+            # make a pandas dataframe out of it. 
+            temp = pd.read_csv(press)
+            # append it to a list of all of the pressframes.
+            self.pressframes.append(temp)
+    
+
+    def _sessions_from_csv(self):
+        """ Internal Function. 
+        Pulls the press data from csv form into a list of dataframes. """
+        # make blank arrays for the sessions
+        self.sessionframes = []
+        
+        # for each session file given, 
+        for sess in self.sess_dir:
+            # make a pandas dataframe out of it. 
+            temp = pd.read_csv(sess)
+            # append it to a list of all of the pressframes.
+            self.sessionframes.append(temp)
+
+
+
     def _drop_after(self, drop):
         """ Internal Function. 
         Drops sessions from the data after the desired session number X. 
@@ -97,34 +139,57 @@ class DataHolder:
         And gets rid of all session summaries after session X"""
         # doesn't really "drop" anything, just selects for rows below the final session index. 
         # select the rows out of the session data where the index is greater than the dropping value
-        self.sessions = self.sessions[self.sessions.index<=drop]
-        # select the rows out of the press data where the number of the session is greater than drop value. 
-        self.presses = self.presses[self["n_sess"]<=drop]
+        for i in range(len(drop)):
+            # for the sessions, drop after the index value. Make the output a temp variable
+            temp = self.sessionframes[i][self.sessionframes[i].index<=drop[i]]
+            # redefine the ith sessionframe to the temp dataframe
+            self.sessionframes[i] = temp 
 
+            # for the presses, select the rows out of the press data where the number 
+            # of the session is greater than drop value. 
+            temp = self.pressframes[i][self.pressframes[i]["n_sess"]<=drop[i]]
+            # redefine the ith pressframe to the temp dataframe. 
+            self.pressframes[i] = temp 
 
-    def _presses_from_csv(self):
+    def _avg_the_data(self):
         """ Internal Function. 
-        Changes indexing method from arbitrary 0,1,2,3,etc to session and number within session. 
-        Drops "n_sess" and "n_in_sess" columns and creates two indexing columns titled the same. 
-        Changes time column from strings to datetime objects """
-        # Import csv, make n_sess and n_in_sess columns as index
-        self.presses = pd.read_csv(self.press_dir,index_col=['n_sess','n_in_sess'])
-        # checks to see if there is a time column, 
-        # if so, replace string dates to datetime objects
-        if "time" in self.presses:
-            self.presses['time'] = pd.to_datetime(self.presses['time'])
-    
+        Pulls in and averages the data input.
 
-    def _sessions_from_csv(self):
-        """ Internal Function. 
-        Changes time column from strings to datetime objects. 
+        We want to average by the trial. Some of the sessions will have two different trial targets 
+        and some of them will only have one. It doesn't make sense to average row by row because some of the rats
+        will take different number of trials per session.   
          """
-        # Import csv
-        self.sessions = pd.read_csv(self.sess_dir, index_col='n_sess')
-        # checks to see if there is a time column, 
-        # if so, replace string dates to datetime objects
-        if 'starttime' in self.sessions:
-            self.sessions['starttime'] = pd.to_datetime(self.sessions['starttime'])
+        # get all of the target values possible. These should be the same accross all of the sessions.
+        targets = list(set((self.sessionframes[0])['target']))
+
+
+        for num in targets:
+            for i in range(len(self.pressframes)):
+                # pull all of the trials where the target was the target indicated from above.  
+
+                temp = self.sessionframes[i][self.sessionframes[i]['target']==num]
+                # make sure that the session has more than one successful press
+                temp = temp[temp['sess_size']>0]
+                # change sessionframes to match temp
+                self.sessionframes[i] = temp 
+                temp = temp['n_sess'].to_numpy()
+                temppress = []
+                for i in temp:
+                    # get all of the presses in that session
+                    data = self.pressframes[i][self.pressframes[i]['n_sess']==i]
+                    # append it to the dataframe to make one big dataframe. 
+                    temppress.append(data)
+                # we are averaging all of the things, so pull out the columns that are actually meaningful
+                # when averaged, ie. interval, tap_1_len, tap_2_len, ratio, and loss
+                press = temppress[["interval", "tap_1_len", "tap_2_len", "ratio", "loss"]]
+                # append another column for the target.. will be the same value 10000 times. 
+                press['target'] = np.full(press.shape[0], num)
+                # change pressframes to be this. 
+                self.pressframes[i] = press 
+
+        """ STILL NEED TO AVERAGE THE THINGS AND THEN MAKE SURE EVERYTHING ELSE WORKS. """
+
+  
 
 
         #return index of first press in each session within a list of presses
@@ -482,4 +547,3 @@ class DataHolder:
     #not working at the moment, need to account for indexing method
     def overwrite_press(self):
         self.presses.to_csv(self.press_dir)
-
