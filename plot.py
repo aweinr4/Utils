@@ -36,15 +36,13 @@ class PlotSingle:
         ---- 
         unnamed : matplotlib plot 
         """
-        # add the average interpress interval to the sessions data and pull it 
-        self.rat.stats("mean", "interval")
-        interval = self.rat.sessions["interval_mean"]
-        # add the average tap 1 length to the sessions data and pull it 
-        self.rat.stats("mean", "tap_1_len")
-        tap1 = self.rat.sessions["tap_1_len_mean"] 
+        # take averages of interpress interval for each session
+        interval = self.rat.stats("mean", "interval")
+        # take average of tap 1 length for each session
+        tap1 = self.rat.stats("mean", "tap_1_len")
         # Pull the session targets. 
-        target = self.rat.SessionTargets()
-        trials = range(1,len(tap1)+1)
+        trials = self.rat.set_of('n_sess')
+        target = [self.rat.get_sess_params(i,'target') for i in trials]
 
         plt.style.use('default')
         plt.scatter(trials, tap1, label="1st Tap Length")
@@ -69,16 +67,19 @@ class PlotSingle:
         unnamed : matplotlib plot 
         """
 
-        taps = self.rat.AvgTaps()
-        target = self.rat.AllTargets()
-        interval = (taps["interval"]).to_numpy()
-        tap2 = (taps["tap_2_len"]).to_numpy()
-        trials = range(1,len(tap2)+1)
+        # take averages of interpress interval for each session
+        interval = self.rat.stats("mean", "interval")
+        # take average of tap 1 length for each session
+        tap2 = self.rat.stats("mean", "tap_2_len")
+        # Pull the session targets. 
+        trials = self.rat.set_of('n_sess')
+        target = [self.rat.get_sess_params(i,'target') for i in trials]
 
         plt.style.use('default')
         plt.scatter(trials, tap2, label="2nd Tap Length")
         plt.scatter(trials, interval, label="IPI")
         plt.plot(target, '-r', label="Target IPI")
+        # ax h line @ozzy ? 
         plt.xlabel('Session Number')
         plt.ylabel('Time (ms)')
         plt.title('{0} Taps & Interval'.format(self.rattitle))
@@ -106,14 +107,14 @@ class PlotSingle:
         # get the success & averaged success from the data
         success, avgs = self.rat.SessionSuccess(error, avgwindow = window)
         # pull the targets for each session
-        target = self.rat.SessionTargets()
-        trials = range(1,len(target)+1)
+        target = self.rat.all_sessions('target')
+        trials = self.rat.set_of('n_sess')
 
         plt.style.use('default')
         plt.scatter(trials, success, label="Successes")
         plt.plot(trials, avgs, '-k', label="Moving Avg of {0} Sessions".format(window))
         plt.xlabel('Session Number')
-        plt.ylabel('Number of trials within {0}% of target IPI'.format(error))
+        plt.ylabel('Percentage of trials within {0}% of target IPI'.format(error))
         plt.title('{0} Success Rate'.format(self.rattitle))
         plt.legend()
         plt.show()
@@ -137,7 +138,7 @@ class PlotSingle:
         """
 
         avgs = self.rat.TrialSuccess(error, avgwindow = window)
-        target = self.rat.TrialTargets()
+        target = self.rat.df['target']
         trials = range(1,len(target)+1)
 
         plt.style.use('default')
@@ -200,7 +201,7 @@ class PlotMultiple:
             for ax, i in zip(axs.flat, range(num)): 
                 # find the data of the rat using the success function
                 avgs = (self.rat[i]).TrialSuccess(error, avgwindow = window)
-                target = (self.rat[i]).TrialTargets()
+                target = (self.rat[i])['target']
                 # define the name of the rat for later
                 ratname = self.ratname[i]
                 trials = range(1,len(target)+1)
@@ -253,7 +254,7 @@ class PlotMultiple:
             for ax, i in zip(axs.flat, range(num)): 
                 # find the data of the rat using the success function
                 success, avgs = (self.rat[i]).SessionSuccess(error, avgwindow = window)
-                target = (self.rat[i]).SessionTargets()
+                target = (self.rat[i]).all_sessions('target')
                 # define the name of the rat for later
                 ratname = self.ratname[i]
                 trials = range(1,len(target)+1)
@@ -344,4 +345,3 @@ class PlotAvgs:
         plt.subplots_adjust(wspace = 0.25, hspace = 0.25)
         # show the plot
         plt.show()
-
