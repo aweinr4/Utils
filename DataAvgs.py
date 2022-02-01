@@ -7,49 +7,73 @@ class DataAvgs:
     """ Class for inputting multiple rat press data files """
 
 
-    def __init__(self, presses = "get", sessions = "get", dropafter = 0):
+    def __init__(self, ratlist):
         """Initialization stores two dataframes in the class, one with information about specific presses 
         and one with the general information of each session. 
 
         Parameters
         --- 
-        presses : list
-            List of csv files with all of the press data. 
-        sessions : list
-            List of csv file with all of the session data
-            NEEDS to to be in the same order as the press data. 
-        dropafter : list 
-            List of numerical values of the session after which the data needs to be dropped. 
-            NEEDs to be in the same order as press data. 
-        
+        ratlist : list
+            List of DataHolder objects. 
         Returns
         --- 
-        None? Creates an object. 
+        None. Creates an object. 
         """
 
-        # make sure that the user has indicated multiple files to use for the presses. 
-        if isinstance(presses, tuple):
-            self.press_dir = presses
-        else:
-            raise SyntaxError("DataAvgs expects multiple input files for presses")
+        datalist = [] 
+        # pull the dataframes from the DataHolder object list
+        for rat in ratlist:
+            frame = rat.df 
+            datalist.append(frame)
+
+        # assume that all of the rats have the same list of targets 
+        # just pull the first rat's targets
+        targets = ratlist[0].set_of('target') 
+
+        # do the preprocessing 
+        targetlist = self._preprocessing(datalist, targets)
+
+        # get the list of cutoff values
+        cutofflist = self._find_cutoff_values(targetlist)
+        # make it into a self-referencing variable
+        self.cuts = cutofflist
+
+        # average the rats into a single dataframe per target
+        targetframe = self._averaging(targetlist) 
+        # make it into a self-referencing variable
+        self.targetframe = targetframe 
+
+
+    def _frames_by_target(self, datalist, targets):
+        """ Internal Function. Groups the dataframes by each of the targets contained. 
+        Parameters 
+        --- 
+        datalist : list
+            nested list of dataframes
+        targets : list
+            list of the targets used in the training 
         
-        # make sure the user has indicated multiple files to use for the sessions. 
-        if isinstance(sessions, tuple):
-            self.sess_dir = sessions
-        else:
-            raise SyntaxError("DataAvgs expects multiple input files for sessions")
-
-        # if a drop-after argument has been included, the sessions after those values need to be 
-        # dropped before we can move on to averaging. 
-
-        # pull the csv into a list of dataframes. 
-        self._presses_from_csv()
-        self._sessions_from_csv()
-
-        # if a dropafter command is entered, then run the dropping function. 
-        # otherwise default value is 0 so the if statement will be false. 
-        if dropafter != 0:
-            self._drop_after(dropafter)
+        Returns 
+        --- 
+        targetlist : list 
+            nested list of dataframes sorted by target 
+        """
+        # make empty lists for the things being seperated by targets
+        targetframes = []
+        dataframes = []
+        # for each target, 
+        for target in targets:
+            # for each of the rats, 
+            for frame in datalist:
+                # grab the entries that have a specific target
+                data = frame.loc[frame["target"]==target]
+                # append that data to the dataframe 
+                dataframes.append(data)
+            # append the dataframe for the whole target group to the targetframe 
+            targetframes.append(dataframes)
+            # reset the dataframe for the next target group 
+            dataframes = []
+        return targetframes 
 
 
     def __getitem__(self,key):
@@ -103,447 +127,131 @@ class DataAvgs:
             raise Exception(f"{type(key)} is an invalid type")
     
 
-    def _presses_from_csv(self):
-        """ Internal Function. 
-        Pulls the press data from csv form into a list of dataframes. """
-        # make blank arrays for the presses
-        self.pressframes = []
-
-        # for each press file given,
-        for press in self.press_dir:
-            # make a pandas dataframe out of it. 
-            temp = pd.read_csv(press)
-            # append it to a list of all of the pressframes.
-            self.pressframes.append(temp)
-    
-
-    def _sessions_from_csv(self):
-        """ Internal Function. 
-        Pulls the press data from csv form into a list of dataframes. """
-        # make blank arrays for the sessions
-        self.sessionframes = []
-        
-        # for each session file given, 
-        for sess in self.sess_dir:
-            # make a pandas dataframe out of it. 
-            temp = pd.read_csv(sess)
-            # append it to a list of all of the pressframes.
-            self.sessionframes.append(temp)
-
-
-
-    def _drop_after(self, drop):
-        """ Internal Function. 
-        Drops sessions from the data after the desired session number X. 
-        Changes both the presses info to eliminate all presses after session X, 
-        And gets rid of all session summaries after session X"""
-        # doesn't really "drop" anything, just selects for rows below the final session index. 
-        # select the rows out of the session data where the index is greater than the dropping value
-        for i in range(len(drop)):
-            # for the sessions, drop after the index value. Make the output a temp variable
-            temp = self.sessionframes[i][self.sessionframes[i].index<=drop[i]]
-            # redefine the ith sessionframe to the temp dataframe
-            self.sessionframes[i] = temp 
-
-            # for the presses, select the rows out of the press data where the number 
-            # of the session is greater than drop value. 
-            temp = self.pressframes[i][self.pressframes[i]["n_sess"]<=drop[i]]
-            # redefine the ith pressframe to the temp dataframe. 
-            self.pressframes[i] = temp 
-
-    def _avg_the_data(self):
-        """ Internal Function. 
-        Pulls in and averages the data input.
-
-        We want to average by the trial. Some of the sessions will have two different trial targets 
-        and some of them will only have one. It doesn't make sense to average row by row because some of the rats
-        will take different number of trials per session.   
-         """
-        # get all of the target values possible. These should be the same accross all of the sessions.
-        targets = list(set((self.sessionframes[0])['target']))
-
-
-        for num in targets:
-            for i in range(len(self.pressframes)):
-                # pull all of the trials where the target was the target indicated from above.  
-
-                temp = self.sessionframes[i][self.sessionframes[i]['target']==num]
-                # make sure that the session has more than one successful press
-                temp = temp[temp['sess_size']>0]
-                # change sessionframes to match temp
-                self.sessionframes[i] = temp 
-                temp = temp['n_sess'].to_numpy()
-                temppress = []
-                for i in temp:
-                    # get all of the presses in that session
-                    data = self.pressframes[i][self.pressframes[i]['n_sess']==i]
-                    # append it to the dataframe to make one big dataframe. 
-                    temppress.append(data)
-                # we are averaging all of the things, so pull out the columns that are actually meaningful
-                # when averaged, ie. interval, tap_1_len, tap_2_len, ratio, and loss
-                press = temppress[["interval", "tap_1_len", "tap_2_len", "ratio", "loss"]]
-                # append another column for the target.. will be the same value 10000 times. 
-                press['target'] = np.full(press.shape[0], num)
-                # change pressframes to be this. 
-                self.pressframes[i] = press 
-
-        """ STILL NEED TO AVERAGE THE THINGS AND THEN MAKE SURE EVERYTHING ELSE WORKS. """
-
-  
-
-
-        #return index of first press in each session within a list of presses
-    def _sess_start_indices(self,presslist):
-        sesslist = np.sort(list(set(presslist.index.get_level_values(0))))
-        indexlist = [len(presslist.loc[0:i]) for i in sesslist]
-        return (sesslist,indexlist)
-
-    @property
-    def columns(self):
-        return list(self.presses.columns) + list(self.presses.index.names)
-        
-    def get_by_target(self,target,col =slice(None)):
-        """ Returns all of the presses that have a particular target. 
-    
-        Parameters
-        ----------
-        target : int
-            integer value of the interpress interval target
-        col : str, optional
-            string of specific column desired, default includes all columns. 
-
-        Returns
-        -------
-        out : dataframe or series
-            dataframe containing presses that have the desired target and desired columns.
-        """
-        # calls press_is function to return the dataframe. 
-        return self.press_is(sess_conditions=f"target == {target}",column=col)
-
-
-    def set_of(self,col):
-        """ Returns list of all data within specified column without duplicates. 
-    
-        Parameters
-        ----------
-        col : str
-            string of specific column info desired. 
-
-        Returns
-        -------
-        out : list
-        """
-        return list(set(self[col]))
-
-
-    def sess_is(self, conditional_string):
-        """ Returns numbered list of all sessions whose columns meet particular values
-    
-        Parameters
-        ----------
-        conditional_string : str
-            Conditional string describing parameters. 
-            Column name options limited to columns in session info 
-
-        Returns
-        -------
-        out : dataframe
-
-        Examples
-        --------
-        DataHolder.sess_is("target > 700") or DataHolder.sess_is("700 < target")
-            returns dataframe with all sessions whose target value is greater than 700 
-        DataHolder.sess_is("(target >= 500) & (sess_size > 10)")
-            returns dataframe with all sessions whose target is greater than or equal to 500 with a session size larger than 10
-        """
-        
-        # for all of the columns in the session info dataframe,
-        for col in self.sessions.columns:
-            # check if the conditional string includes that column name. 
-            if col in conditional_string:
-                # if so, change the input conditional string to one that pandas can read
-                # pandas needs dataframe.loc[dataframe['column']>x]
-                conditional_string = sreplace(conditional_string,col,f"self['{col}']",count_as_alpha=['_'])
-
-        # use pandas to apply formated conditional string and extract sessions
-        return self.sessions.loc[eval(conditional_string)]
-
-    def press_is(self, press_conditions = 'slice(None)', sess_conditions = 'slice(None)', column = slice(None), return_starts = False):
-        """ Get all presses that mach specific criteria
-        
+    def _preprocessing(self, datalist, targets):
+        """ Internal Function. Crop the dataframes to include only specific columns & sort by 
+        target value.
         Parameters 
-        ----
-        press_conditions : string 
-            String of conditions for the presses. Operates on the columns of the presses csv.
-
-        sess_conditions : string 
-            String of conditions for the sessions. Operates on the columns of the session csv.
-
-        column : string 
-            String for the column name desired.  
-
-        return_starts : 
-            ? 
-
-        Returns
-        ---
-        outval : dataframe
-            Dataframe with only the data that matches the input criteria.
-        """
-        #get indices of all sessions that match session criteria
-        sess_indices = np.sort(list(set(self.sess_is(sess_conditions).index) & set([i[0] for i in self.presses.index])))
-
-        #replaces the way user writes conditions with conditions that pandas can use
-        for col in self.columns:
-            if col in press_conditions:
-                press_conditions = sreplace(press_conditions,col,f"self['{col}']",count_as_alpha=['_'])
-        outval = self.presses.loc[eval(press_conditions)].loc[sess_indices]
-
-        #record start index for each session incase it is requested
-        starts = self._sess_start_indices(outval)
-
-        #restrict to a specific column if requested
-        if column == 'n_in_sess':
-            outval =  outval.index.get_level_values(1)
-        elif column == 'n_sess':
-            outval =  outval.index.get_level_values(0)
-        else:
-            outval = outval[column]
-            
-        if return_starts:
-            outval = (outval,starts)
-        return outval
-
-
-
-    #get first press that matches specific criteria
-    def get_first_press(self,press_conditions = 'slice(None)',sess_conditions = 'slice(None)'):
-        return self.press_is(press_conditions=press_conditions,sess_conditions=sess_conditions).iloc[0]
-
-    #get the information about a specific session        
-    def get_sess_params(self,n,col = slice(None)):
-        return self.sessions.loc[n,col]
-
-    #get all presses within a specific session
-    def get_sess(self,n_sess):
-        return self.presses.loc[n_sess]
-
-    #change a target in sesion data
-    def change_target(self,old,new,save = False):
-        targets = []
-        for i in self.sessions['target']:
-            if i==old:
-                targets.append(new)
-            else:
-                targets.append(i)
-        self.sessions['target'] = targets
-
-        if save:
-            self.overwrite_sess()
-    
-    #delete a session
-    def drop_sess(self,n,save = False):
-        if isinstance(n,int):
-            n = [n]
-        for i in n:
-            self.presses = self.presses.loc[~(self.presses.index.get_level_values(0)==i)]
-            self.sessions.drop(i,inplace = True)
-
-        if save:
-            self.overwrite_press()
-            self.overwrite_sess()
-
-    def stats(self, stat, column, save = False):
-        """ Add a column of statistics about a column from presses
-    
-        Parameters
-        ----------
-        stat : str
-            statistic you want taken, can be mean,median,mode,max,min, or std
-
-        column : str
-            name of column from presses
-
-        save: Boolean, optional
-            wether or not to overwrite the csv
-
-        Returns
-        -------
-        None
-
+        --- 
+        datalist : list
+            nested list of dataframes
+        targets : list
+            list of the targets used in the training 
+        
+        Returns 
+        --- 
+        targetlist : list 
+            nested list of dataframes sorted by target 
         """
 
-        statcol = []
-        for i in self.sessions.index:
-            try:
-                row = self.get_sess(i)[column].to_numpy()
-                statcol.append(eval(f"row.{stat}()"))
-            except KeyError:
-                statcol.append(np.nan)
-        self.sessions[column + "_" + stat] = statcol
-
-        if save:
-            self.overwrite_press()
-
-
-    def PercentDiff(self): 
-        """ Function to pull the target ipi, actual ipi, and percent difference 
-        from the target for each press within the sessions.
-        Output is a dataframe with target ipi/ ipi/ %difference columns with length of the number of trials."""
-        # pull the target ipi from the sessionlist and add another column to the presslist dataframe. 
-        # this is because the target ipi will vary depending on the session. 
-
-        data = self.presses[["n_sess","interval","ratio","loss"]]
-        return data 
+        # assume that all of the dataframes have the same targets witin each rat group
+        # Seperate the data by target group 
+        targetframes = self._frames_by_target(datalist, targets)
+        # create blank targetlist for storing the new dataframes and blank dataframes for iterating over 
+        targetlist = []
+        dataframes = []
+        # for each of the target groups, 
+        for target in targetframes:
+            # for each of the dataframes within the target group, 
+            for frame in target:
+                # grab only the columns that we want to average over
+                press = frame.copy()[["interval", "tap_1_len", "tap_2_len", "ratio", "loss", "target"]]
+                # append them onto the dataframe
+                dataframes.append(press)
+            # append each full dataframe to the target group dataframe
+            targetlist.append(dataframes)
+            # reset the dataframes list for the next target group
+            dataframes = []
+        return targetlist  
 
 
-    def TrialTargets(self):
-        """ Outputs a dataframe with the target ipi for every trial. 
-        Used for plotting purposes. """
-        # initialize a blank frame for the data
-        framedata = []
-        # make a dataframe for the targets for every press trial. 
-        # change starting number to the 1st session number because 
-        # some of the sessions are dropped
-        for i in (self.sess_is("sess_size>0")).index:
-            # pull the ith session target from the session dataframe
-            target = self.sessions.loc[i,'target']
-            # get the data from the ith session, and take its shape. The number of rows is 
-            # the number of trials. 
-            data = (self.get_sess(i).shape)[0]
-            # make a numpy array with length(number of trials) and fill value = target. 
-            targets = np.full(data, target)
+    def _find_cutoff_values(self, targetlist):
+        """ Internal Function. Finds the 'cutoff' values -- where the avg will go from having N rats to N-1 rats. 
 
-            # add the target data to the frame
-            framedata = np.append(framedata, targets, axis=0)
+        Parameters 
+        --- 
+        targetlist : list
+            nested list of dataframes seperated by target. 
+        
+        Returns 
+        --- 
+        cutofflist : list 
+            nested list of lists of cutoff values for each target group 
+        """
+        # create blank arrays for the cutoff value list and a blank array for use in the for loops
+        cutoff = [] 
+        cutofflist = []
+        # for each of the target groups, 
+        for target in targetlist:
+            # for each of the rats within the target groups, 
+            for frame in target:
+                # append the length of the dataframe to the cutoff list 
+                cutoff.append(frame.shape[0])
+            # append the list of cutoffs for each dataframe within the target group 
+            cutofflist.append(cutoff)
+            # reset the blank array for the next target group 
+            cutoff = [] 
+        # return the full cutoff list of all target groups. 
+        return cutofflist  
 
-        targetframe = pd.DataFrame(framedata, columns=['target'])
 
-        # Return the data and the target frame
+    def _averaging(self, targetlist):
+        """ Internal Function. Output will be a list of averaged dataframes, length of which will be the number of target ipi's used in training. 
+        Parameters 
+        --- 
+        targetlist : list
+            nested list of dataframes seperated by target. 
+        
+        Returns 
+        --- 
+        targetframe : list 
+            nested list of averaged dataframes for each target group
+        """ 
+        
+        # initiate the iteration variable at 0 
+        i = 0
+        # make a blank targetframe for the averaged dataframes. 
+        targetframe = [] 
+        # while there are still targetlists to go over, 
+        while i < len(targetlist): 
+            # grab the datframes by the target group
+            data = targetlist[i]         
+            # concatenate the data
+            newpress = pd.concat(data)
+            # use builtin .groupby() to stack the frames and then average. 
+            avg = newpress.groupby(level=0).mean()
+            # append the data entry to the single averaged dataframe. 
+            targetframe.append(avg) 
+            # step up i
+            i += 1 
+        # return the list of averaged dataframes. 
         return targetframe
 
 
-    def TrialSuccess(self, error, avgwindow = 100):
-        """ Returns an array with the number of successes in each session where the trial IPI was 
-        +- error % away from the target IPI. 
+    """ --------------------------------------------------------------------------------------------------"""
+
+    
+    def ShowOverview(self):
+        """ Returns overview of the data. 
         
-        Parameters 
-        -------
-        error : int
-            The numerical value of the percentage bounds from target desired. 
-        avgwindow : int
-            The number of sessions that should be used to calculate the moving average. 
-            Default is a window of 5 
-        
-        Returns 
-        ------
-        successes : np.array
-            Contains the number of succcesses for each session
-        avg : np.array
-            Contains the moving average of the successes per session
-
-        """
-        # create blank array for the session successes. 
-        success = [] 
-        # grab the percentage error for each trial 
-        loss = (self.presses['loss']).to_numpy()
-        # define upper and lower bounds
-        upper = error/100
-        lower = -error/100 
-
-        # for each trial, 
-        for i in range(len(loss)):
-            # append a 1 to the success frame if the value is between the bounds
-            if (upper >= loss[i] and lower <= loss[i]):
-                success.append(1)
-            # if not, append a zero. 
-            else:
-                success.append(0)
-        # make the data into a dataframe 
-        df = pd.DataFrame(success, columns = ['Success'])
-        # use the pandas built-in 'rolling' to calculate the moving average. 
-        # and assign it to 'avgs'
-        avgs = (df.rolling(avgwindow, min_periods=1).mean())*100
-        # return the averages
-        return avgs
-
-
-    def SessionTargets(self):
-        """ Outputs a list with the target ipi for every session. 
-        Used for plotting purposes. 
-        
-        Parameters
-        ---
+        Params 
+        --- 
         None
         
         Returns
-        --- 
-        framedata : list
+        info : print 
+            Info about how many presses, targets, and rats included. 
         """
-        # initialize a blank frame for the data
-        framedata = []
-        # use this to get all of the sessions who have at least one trial inside of them. 
-        for i in (self.sess_is("sess_size>0")).index:
-            # grab the value of the target for that session
-            target = self.sessions.loc[i,'target']
-            # append the value to the frame
-            framedata.append(target)
-        return framedata
-
-
-    def SessionSuccess(self, error, avgwindow = 5):
-        """ Returns an array with the percentage of successes in each session where the trial IPI was 
-        +- error % away from the target IPI. 
+        numrat = "error" # len(self.cuts[0])
+        targets = []
+        for frame in self.targetframe:
+            length = frame.shape[0]
+            target = frame.loc[0,"target"]
+            targets.append(target)
+        text = f"Number of Rats: {numrat} ... Number of Trials: {length} ... Targets: {targets} "
+        return text 
         
-        Parameters 
-        -------
-        error : int
-            The numerical value of the percentage bounds from target desired. 
-        avgwindow : int
-            The number of sessions that should be used to calculate the moving average. 
-            Default is a window of 5 
-        
-        Returns 
-        ------
-        successes : np.array
-            Contains the number of succcesses for each session
-        avg : np.array
-            Contains the moving average of the successes per session
 
-        """
-        # create blank array for the session successes. 
-        success = [] 
-        # iterate through all of the sessions whose number of trials isn't zero.
-        for i in (self.sess_is("sess_size>0")).index:
-            # error in the csv is in decimal form, so convert to upper and lower bounds. 
-            upper = error/100 
-            lower = -error/100
-            # pull out a dataframe of the sessions that are between the bounds for each session i 
-            data = self.press_is(press_conditions = f'(loss <= {upper}) & (loss >= {lower}) & (n_sess == {i})')
-            # data.shape[0] is the number of successes for that session. 
-            # divide that by the total number of trials per session. and *100 so it's a whole number.
-            data = ((data.shape[0])/((self.get_sess(i).shape)[0]))*100
-            # append the number of successes for that session
-            success.append(data)        
-        # create a new dataframe with the successes
-        df = pd.DataFrame(success, columns = ['Success'])
-        # use the pandas built-in 'rolling' to calculate the moving average. 
-        # and add a column to the dataframe with the moving averages. 
-        movingavg = df.rolling(avgwindow, min_periods=1).mean()
-        avgs = movingavg.to_numpy()
-        # return the two numpy lists. 
-        return success, avgs
+    def CutoffValues(self):
+        return self.cuts 
 
-
-    def Taps(self): 
-        """ Outputs a data frame with the tap lengths and interval for each trial"""
-        return self.presses[["interval","tap_1_len","tap_2_len"]] 
-
-        
-    #overwrite the actual csv files so adjustments are saved for next time
-    def overwrite_sess(self):
-        self.sessions.to_csv(self.sess_dir)
-
-    #not working at the moment, need to account for indexing method
-    def overwrite_press(self):
-        self.presses.to_csv(self.press_dir)
+    

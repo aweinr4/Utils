@@ -1,2 +1,2 @@
 
-__all__ = ['DataHolder','simple','plot']
+__all__ = ['DataHolder','simple','plot', 'DataAvgs']

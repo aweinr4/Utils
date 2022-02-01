@@ -269,3 +269,79 @@ class PlotMultiple:
         plt.subplots_adjust(wspace = 0.25, hspace = 0.25)
         # show the plot
         plt.show()
+
+
+
+class PlotAvgs:
+
+    def __init__(self, ratt, groupname):
+        """ Class for graphs! 
+        
+        Parameters 
+        ---- 
+        ratt : object
+            The object returned from the DataAvgs(presses, session) class
+        groupname : str
+            Name of the group of the rats
+        """
+
+        self.rat = ratt
+        self.name = groupname 
+
+    def T_SuccessRate(self, error = 20, window = 100, width = 7, height = 5):
+        """ Returns a plot with number of trials where the IPI was within +-X % of the target IPI. 
+        
+        Parameters 
+        ---- 
+        error : int
+            Whole number value of the percentage bounds. 
+            ex. 10% is 'error = 10'. Default is +-20%
+        avgwindow : int
+            The number of sessions that should be used to calculate the moving average. 
+            Default is a window of 5 
+        width : int
+            Preset width for one graph 
+        height : int
+            Preset height for one graph
+        
+        Returns
+        --- 
+        unnamed : matplotlib plot
+        """
+        # the number of graphs needed for the different targets.
+        num = len(self.rat)
+        
+        # find the data of the rat using the success function
+        target = (self.rat).TrialTargets()
+        avgs = (self.rat).TrialSuccess(error, avgwindow = window)
+
+        # for each of the rats, 
+        with plt.style.context('default'):
+        # define the structure of the figure 
+            fig, axs = plt.subplots(1, num, figsize = (width*num, height) )
+            for ax, i in zip(axs.flat, range(num)):
+                # split the data by the cutoffs for different colors by #rat averaged
+
+                # grab the cuts for that target and sort from small to large
+                cuts = (self.cuts[i]).sort()
+                
+                # 
+                # 
+                # 
+                # 
+                # 
+                #  
+                ipi = target[i][0]
+                trials = range(1,len(target[i])+1)
+                ax.plot(trials, avgs[i], '-k', label=f"Moving Avg of {window} Trials")
+                ax.set_xlabel('Trial Number')
+                ax.set_ylabel(f'Percent of trials within {error}% of target IPI')
+                ax.set_title(f'{self.name} Trial Success Rate at {ipi} IPI')
+                ax.set_ylim([0,100])
+                ax.legend()
+
+        # change the spacing between the plots for more room for the labels. 
+        plt.subplots_adjust(wspace = 0.25, hspace = 0.25)
+        # show the plot
+        plt.show()
+
