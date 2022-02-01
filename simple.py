@@ -74,7 +74,7 @@ def sreplace(instr,repl,replwith,max_iterations=100,count_as_alpha = []):
 #manage extras choses what to do if list cannot be subdivided exactly by divsize
 def func_on_subsets(vals,divsize,func,manage_extras = "auto",xs = None):
     #if list does not subdivide exactly chose what to do with extra value
-    manage_extras = {"auto":rndnt,"keep":cnt,"drop":fnt}[manage_extras]
+    manage_extras = {"auto":rndnt,"keep":ceil,"drop":fnt}[manage_extras]
     #compute the unsupplied value or give error if both or neither were given
     n = manage_extras(len(vals)/divsize)
 
