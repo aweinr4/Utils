@@ -46,10 +46,6 @@ class DataHolder:
         # do preprocessing of the dataframes. 
         self._init_df(dropafter)
 
-        # if a dropafter command is entered, then run the dropping function. 
-        # otherwise default value is 0 so the if statement will be false. 
-        if dropafter != 0:
-            self._drop_after(dropafter)
 
 
     def __getitem__(self,key):

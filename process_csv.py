@@ -91,7 +91,10 @@ class matlab_to_csv:
         #get times for each session
         starttimes = []
         for i in self.sess_in['startTime']:
-            starttimes.append(OrdToDate(i))
+            try:
+                starttimes.append(OrdToDate(i))
+            except ValueError:
+                starttimes.append(OrdToDate(i,rnd = 'second'))
         self.sess_out['starttime'] = starttimes
 
     def get_times(self):
