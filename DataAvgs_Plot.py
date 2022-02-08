@@ -9,11 +9,11 @@ import datetime
 from scipy import stats
 from .DataHolder import DataHolder
 from .simple import ceil
+import math as ma 
 
 
 
 class AveragedRats:
-    # THIS IS A DISASTER ZONE, DO NOT ATTEMPT TO USE THIS CLASS YET 
 
     # all of the colors for the plotting. We'll have issues if there are more than 8 rat groups compared simultaneously. 
     farben= ['xkcd:dark red','xkcd:burnt orange', 'xkcd:goldenrod', 'xkcd:forest green', 'xkcd:royal blue','xkcd:dark purple', 'xkcd:violet', 'xkcd:rose']
@@ -30,9 +30,36 @@ class AveragedRats:
             Name(s) of the rat to be displayed on the plots. 
         """
                    
-        self.rattitle = ratname
+        self.names = ratname
         self.rat = ratdata
 
+
+    
+    def _xlabel(self, value, tick_number=None):
+        if abs(value) < 1000:
+            num = 0 
+        else:
+            num = ma.floor(ma.log10(abs(value))/3)
+        value = round(value / 1000**num, 2)
+        return f'{value:g}'+' KM'[num]
+
+
+    def _pretty(self, ax, targets = False, ylim = False):
+        # Aesthetic Changes ________________________________________________
+
+        if ylim != False:
+            plt.ylim((0, ylim)) 
+        else: 
+            ylim = np.max(targets)+100
+            plt.ylim((0,ylim))
+        
+        plt.xlabel('Trials', loc = "right")
+        # code from stackoverflow for formatting the axis as #'s of k 
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
+        
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=3).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
 
 
     def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300):
@@ -85,15 +112,16 @@ class AveragedRats:
             self.Tap_vIPI(2, target, window, minwindow) 
 
         # Graph of IPI vs. trials 
-        elif ptype == "IPI":
+        elif ptype == ("IPI" or "interval" or "Interval"):
             self.IPI(target, window, minwindow)
 
         # Graph of Success vs. trials 
-        elif ptype == "Success":
+        elif ptype == ("Success" or "success"):
             self.Success(target, error, window, minwindow)
 
-        elif ptype == "CV":
+        elif ptype == ("CV" or "cv"):
             self.CV(target, window, minwindow, boxcar)
+
 
 
     def Tap_vIPI(self, tap, target, window, minwindow):
@@ -105,36 +133,36 @@ class AveragedRats:
 
         # define the plotting style 
         plt.style.use('default')
+        fig, ax = plt.subplots()
+        # blank array for the length of the trials
+        length = []
         
         # now that all posibilities of self.rat are lists
-        for rat, name in zip(self.rat, self.rattitle):
-            # Find the index of the correct dataframe within the targetframe object
-            i = rat.Find_i(target)
-            # grab the correct dataframe
-            data = rat[i] 
-            # define the interval
-            interval = data.MovingAverage('interval', win = window, minwin = minwindow)
+        for rat, name in zip(self.rat, self.names):
+        
+            # define the interval 
+            interval = rat.MovingAverage(target, 'interval', win = window, minwin = minwindow)
             # find the moving average of the tap length
             if tap == 1:
-                taps = data.MovingAverage('tap_1_len', win = window, minwin = minwindow)
+                taps = rat.MovingAverage(target, 'tap_1_len', win = window, minwin = minwindow)
             else:
-                taps = data.MovingAverage('tap_2_len', win = window, minwin = minwindow) 
+                taps = rat.MovingAverage(target, 'tap_2_len', win = window, minwin = minwindow) 
             
             # make a list for the trials 
             trials = range(len(interval))
+            length.append(trials[-1])
 
             # plot 
-            plt.scatter(trials, taps, label= f'{name}, Tap {tap}')
-            plt.scatter(trials, interval, label=f'{name}, IPI')
+            ax.plot(trials, taps, label= f'{name}, Tap {tap}')
+            ax.plot(trials, interval, label=f'{name}, IPI')
         
         # plot a line at where the target should be. 
-        plt.hlines(target, 0, len(interval), 'xkcd:light grey', label="target")
+        ax.hlines(target, 0, np.max(length), colors = ['xkcd:grey'], linestyles = ":", label="Target")
 
-        # add things to the plot that only need to be added once. 
-        plt.xlabel('Trial Number')
-        plt.ylabel('Time (ms)')
+        self._pretty(ax, ylim = target +100)
+
+        plt.ylabel(' Time (ms)')
         plt.title(f'Tap {tap} & Interval')
-        plt.legend()
         plt.show()
 
 
@@ -165,21 +193,26 @@ class AveragedRats:
 
         # So plots show up on a dark background VSCode
         plt.style.use('default')
+        fig, ax = plt.subplots()
+        length = []
 
         # for each of the rats being plotted, 
-        for r in range(len(self.ratlist)): 
+        for r in range(len(self.rat)): 
             # find the coefficient of variation for this rat and then plot it. 
-            success = self.ratlist[r].Avgd_Interval(target, avgwindow = window, minwin = minwindow)
+            interval = self.rat[r].MovingAverage(target, "interval", win = window, minwin = minwindow)
             
             # define the x axis based on the length of the successes
-            trials = range(success.shape[0])
+            trials = range(interval.shape[0])
+            length.append(trials[-1])
             # plot with a different color for each rat in the ratlist. 
-            plt.plot(trials, success, color = self.farben[r], label=f'{self.names[r]} group')
-            # just making the plot look nice
-        plt.xlabel('Trial Number')
+            ax.plot(trials, interval, color = self.farben[r], label=f'{self.names[r]} group')
+        
+        ax.hlines(target, 0, np.max(length), 'xkcd:grey', ":", label = "Target") 
+
+        self._pretty(ax, ylim = target + 100)
+        
         plt.ylabel(f' Interval (miliseconds')
         plt.title(f'IPI for {target}ms target IPI')
-        plt.legend()
         plt.show() 
 
 
@@ -214,26 +247,26 @@ class AveragedRats:
        
         # So plots show up on a dark background VSCode
         plt.style.use('default')
+        fig, ax = plt.subplots()
 
         # for each of the rats being plotted, 
-        for r in range(len(self.ratlist)): 
+        for rat, name in zip(self.rat, self.names):
             # find the coefficient of variation for this rat and then plot it. 
-            success = self.ratlist[r].TrialSuccess(target, error, avgwindow = window)
-            # crop the first 10 trials because some start at 100% and then plummet which makes the graph look wonky.
-            #success = success[10:]
+            success = rat.MovingAverage(target, "Success", win = window, minwin = minwindow, err = error)
+            
             # define the x axis based on the length of the successes
             trials = range(success.shape[0])
             # plot with a different color for each rat in the ratlist. 
-            plt.plot(trials, success, color = self.farben[r], label=f'{self.names[r]} group')
-        # just making the plot look nice
-        plt.xlabel('Trial Number')
+            ax.plot(trials, success, label=f'{name} group')
+
+        self._pretty(ax, ylim = 100)
+        
         plt.ylabel(f'Percent of trials within limit (moving {window} trial window) ')
         plt.title(f'Success Rate within +-{error}% of {target}ms target IPI')
-        plt.legend()
         plt.show() 
 
 
-    def CV(self, target, window, minwindow, boxcar): 
+    def CV(self, target, window, minwindow, box): 
         """ Returns a plot of the coefficient of variation for all of the rats that you give it 
         
         Params 
@@ -247,6 +280,12 @@ class AveragedRats:
         window : int
             The number of sessions that should be used to calculate the moving coefficient of variation. 
             Default is a window of 100
+
+        minwindow : int
+            OPTIONAL
+            The number of sessions used to calculate a single average. Ex. minwindow = 20 will 
+            Wait until the 20th row before calculating an average and place NaN in the first 19 rows.
+            Default is a window of 10
         
         boxcar : int 
             The number of sessions that is used to smooth the Coefficient of variation data. 
@@ -256,21 +295,35 @@ class AveragedRats:
         --- 
         plot
         """
+
        # check to see if the rats are in a list. If not, that means there is only one rat in the list. 
         if not isinstance(self.rat, list): 
             # make the item into a "list" so it can be iterated over the same code. 
             self.rat = [self.rat] 
         
         plt.style.use('default')
-        for r in range(len(self.ratlist)): 
+        fig, ax = plt.subplots()
+
+        # make an array for the max height
+        height = []
+        
+
+        for r in range(len(self.rat)): 
             # find the coefficient of variation for this rat and then plot it. 
-            cv, i = self.ratlist[r].Variation(target, avgwindow = window, boxcar = boxcar)
+            cv = self.rat[r].MovingAverage(target, "CV", win = window, minwin = minwindow, boxcar = box)
             trials = range(cv.shape[0])
+
+            max = np.nanmax(cv)
+            height.append(max)
+
             # plot with a different color for each rat in the ratlist. 
-            plt.plot(trials, cv, color = self.farben[r], label=f'{self.names[r]} group')
-        plt.xlabel('Trial Number')
+            ax.plot(trials, cv, color = self.farben[r], label=f'{self.names[r]} group')
+
+        ylimit = np.max(height) + 0.1
+        self._pretty(ax, ylim = ylimit) 
+
         plt.ylabel('Coefficient of Variation')
         plt.title(f'Coefficient of Variation for {target}ms target IPI')
-        plt.ylim([0,0.4])
-        plt.legend()
         plt.show()
+
+

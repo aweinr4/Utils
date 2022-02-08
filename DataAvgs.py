@@ -79,7 +79,6 @@ class DataAvgs:
             # reset the dataframe for the next target group 
             dataframes = []
         return targetframes 
-        # TARGET COLUMN MIGHT BE LOST HERE. 
 
 
     def __getitem__(self,key):
@@ -238,6 +237,8 @@ class DataAvgs:
         # return the list of averaged dataframes. 
         return targetframe
 
+    
+    """ --------------------------------------------------------------------------------------------------"""
 
     def Find_TargetFrame(self, target):
         # have to find the targetframe that needs to be pulled 
@@ -263,10 +264,7 @@ class DataAvgs:
                 i += 1
         
         return i
-        
-
-    """ --------------------------------------------------------------------------------------------------"""
-
+  
     
     def ShowOverview(self):
         """ Returns overview of the data. 
@@ -293,134 +291,92 @@ class DataAvgs:
         return self.cuts 
 
 
-    def TrialSuccess(self, target, error, avgwindow = 1000):
-        """ Returns an array with the number of successes in each session where the trial IPI was 
-        +- error % away from the target IPI. 
+    def MovingAverage(self, target, column, win = 1000, minwin = 1, boxcar = 300, err = 20):
+        """Returns an array with the moving average of all trial data from the specified column/data. 
         
         Parameters 
         -------
-        dataframe : dataframe 
-            averaged dataframe for a specific target. 
-        error : int
-            The numerical value of the percentage bounds from target desired. 
-        avgwindow : int
+        target : int 
+            REQUIRED 
+            The numerical value of the target desired. 
+
+        columnname : str
+            REQUIRED
+            String of the column desired. Can be any of the columns in the dataframe, or 
+            'success' and 'cv' 
+
+        win : int
+            OPTIONAL
             The number of sessions that should be used to calculate the moving average. 
-            Default is a window of 5 
+            Default is a window of 100 
         
-        Returns 
-        ------
-        successes : np.array
-            Contains the number of succcesses for each session
-        avg : np.array
-            Contains the moving average of the successes per session
+        minwin : int
+            OPTIONAL
+            The number of sessions used to calculate a single average. Ex. minwin = 20 will 
+            Wait until the 20th row before calculating an average and place NaN in the first 19 rows.
+            Default is a window of 10
 
-        """
+        err : int
+            OPTIONAL
+            Whole number for the percentage bounds for the 'success' moving average. 
+            Default is 20 ( +-20% bounds ) 
         
-        data = self.Find_TargetFrame(target)
-
-        # grab the percentage error for each trial 
-        loss = (data['loss']).to_numpy()
-        # define upper and lower bounds
-        upper = error/100
-        lower = -error/100 
-
-        #convert a bool array of whether or not losses are in between bounds to integer array 
-        success = ((loss <= upper) & (lower <= loss)).astype(int)
-
-        # make the data into a dataframe
-        df = pd.DataFrame(success, columns = ['Success'])
-        # use the pandas built-in 'rolling' to calculate the moving average. 
-        # and assign it to 'avgs'
-        avgs = (df.rolling(avgwindow, min_periods=10).mean())*100
-        # return the averages
-        return avgs
-
-
-    def Avgd_Interval(self, target, avgwindow = 1000, minwin = 1):
-        """ Returns an array with the number of successes in each session where the trial IPI was 
-        +- error % away from the target IPI. 
-        
-        Parameters 
-        -------
-        dataframe : dataframe 
-            averaged dataframe for a specific target. 
-        error : int
-            The numerical value of the percentage bounds from target desired. 
-        avgwindow : int
-            The number of sessions that should be used to calculate the moving average. 
-            Default is a window of 5 
-        
-        Returns 
-        ------
-        successes : np.array
-            Contains the number of succcesses for each session
-        avg : np.array
-            Contains the moving average of the successes per session
-
-        """
- 
-        data = self.Find_TargetFrame(target)
-
-        # grab the percentage error for each trial 
-        intervals = data[['interval']]
-
-        # use the pandas built-in 'rolling' to calculate the moving average. 
-        # and assign it to 'avgs'
-        avgs = (intervals.rolling(avgwindow, min_periods=minwin).mean())
-        # convert to a numpy array
-        # return the averages
-        return avgs
-
-    def MovingAverage(self, column, win = 1000, minwin = 1):
-        if column in self.columns
-
-
-    def Variation(self, target, avgwindow = 100, boxcar = 300): 
-        """ Returns an array with the coefficient of variation in each group by target IPI 
-        
-        Parameters 
-        -------
-        dataframe : dataframe 
-            averaged dataframe for a specific target. 
-            
-        avgwindow : int
-            The number of sessions that should be used to calculate the moving coefficient of variation. 
-            Default is a window of 100
-        
-        boxcar : int 
-            The number of sessions that is used to smooth the Coefficient of variation data. 
+        boxcar : int
+            OPTIONAL 
+            Whole number for the coefficient of variation smoothing average. 
             Default is a window of 300
         
         Returns 
         ------
-        cv : np.array
-            Contains the coefficient of variation for each tap
-
-        i : int 
-            The number in the targetframe that we are using (based on target wanted)
-
+        avgs : np.array
+            Contains the moving average of the desired column
         """
 
-        data = self.Find_TargetFrame(target)
-        i = self.Find_i(target)
+        frame = self.Find_TargetFrame(target)
 
-        # grab the interval column from the prespecificied dataframe. 
-        ipi = data['interval']
+        if column in frame.columns:
+            data = frame[column]
+            # use the pandas built-in 'rolling' to calculate the moving average. 
+            # and assign the array output to 'avgs'
+            avgs = (data.rolling(win, min_periods=minwin).mean())
+            return avgs 
+        
+        if column == ("Success" or "success"):
+            # grab the percentage error for each trial 
+            loss = (frame['loss']).to_numpy()
+            # define upper and lower bounds
+            upper = err/100
+            lower = -err/100 
 
-        # find the average for the intervals. 
-        avg = (ipi.rolling(avgwindow, min_periods=1).mean())
-        # find the standard deviation for the intervals 
-        sdev = (ipi.rolling(avgwindow, min_periods=1).std())
-        # define the rough coefficient of variation as the standard deviation divided by the mean. 
-        roughcv = sdev/avg
-        # smooth the coefficient of variation with the moving average 
-        cv = (roughcv.rolling(boxcar, min_periods=1).mean())
-        # make sure any not a numbers are numpy not a number so they aren't plotted and don't break the matplotlib
-        cv = cv.replace(pd.NA, np.NaN)
+            #convert a bool array of whether or not losses are in between bounds to integer array 
+            success = ((loss <= upper) & (lower <= loss)).astype(int)
+            # make the data into a dataframe
+            df = pd.DataFrame(success, columns = ['Success'])
+            # use the pandas built-in 'rolling' to calculate the moving average. 
+            # and assign it to 'avgs'
+            avgs = (df.rolling(win, min_periods=minwin).mean())*100
+            # return the averages
+            return avgs
+        
+        if column == ("CV" or "cv"):
 
-        # return the dataframe as a numpy array, along with the index of the targetframe. 
-        return cv.to_numpy(), i 
+            # grab the interval column from the prespecificied dataframe. 
+            data = frame['interval']
 
+            # find the average for the intervals. 
+            avg = (data.rolling(win, min_periods = minwin).mean())
+            # find the standard deviation for the intervals 
+            sdev = (data.rolling(win, min_periods = minwin).std())
+            # define the rough coefficient of variation as the standard deviation divided by the mean. 
+            roughcv = sdev/avg
+            # smooth the coefficient of variation with the moving average 
+            cv = (roughcv.rolling(boxcar, min_periods=1).mean())
+            # make sure any not a numbers are numpy not a number so they aren't plotted and don't break the matplotlib
+            # then convert to numpy
+            avgs = (cv.replace(pd.NA, np.NaN)).to_numpy()
+
+            # return the dataframe as a numpy array 
+            return avgs
 
 
     def CutByRat(self, dataframe, i, cv): 

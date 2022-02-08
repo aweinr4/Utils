@@ -170,6 +170,7 @@ class DataHolder:
         # calls press_is function to return the dataframe. 
         return self.df.loc[self.df['target'] == target][col]
 
+
     def set_of(self,col,sort = True):
         """ Returns list of all data within specified column without duplicates. 
     
@@ -224,6 +225,7 @@ class DataHolder:
 
         # use pandas to apply formated conditional string and extract presses
         return self.df.loc[eval(conditional_string)]
+
 
     def get_first_press(self,conditional_string):
         """ Get the row of the first press that matches specific criteria
@@ -416,9 +418,8 @@ class DataHolder:
         return avgs
 
 
-    def MovingAverage(self, columnname, win = 100, minwin = 10, err = 20):
+    def MovingAverage(self, columnname, win = 100, minwin = 10, err = 20, box = 300):
         """ Returns an array with the moving average of all trial data from the specified column/data. 
-        
         
         Parameters 
         -------
@@ -443,20 +444,22 @@ class DataHolder:
             Whole number for the percentage bounds for the 'success' moving average. 
             Default is 20 ( +-20% bounds ) 
         
+        boxcar : int
+            OPTIONAL 
+            Whole number for the coefficient of variation smoothing average. 
+            Default is a window of 300
+        
         Returns 
         ------
-        successes : np.array
-            Contains the number of succcesses for each session
-        avg : np.array
-            Contains the moving average of the successes per session
-
+        avgs : np.array
+            Contains the moving average of the desired column
         """
 
         if columnname in self.df.columns: 
             # pull the data out of the main dataframe
             data = self.df[columnname]
             # take the rolling average
-            avgs = (data.rolling(win, min_periods=minwin).mean())*100
+            avgs = (data.rolling(win, min_periods=minwin).mean())
             return avgs 
 
         if columnname == 'success':
@@ -474,6 +477,26 @@ class DataHolder:
             # and assign it to 'avgs'
             avgs = (df.rolling(win, min_periods=minwin).mean())*100
             # return the averages
+            return avgs
+
+        if columnname == ("CV" or "cv"):
+
+            # grab the interval column from the prespecificied dataframe. 
+            data = self.df['interval']
+
+            # find the average for the intervals. 
+            avg = (data.rolling(win, min_periods = minwin).mean())
+            # find the standard deviation for the intervals 
+            sdev = (data.rolling(win, min_periods = minwin).std())
+            # define the rough coefficient of variation as the standard deviation divided by the mean. 
+            roughcv = sdev/avg
+            # smooth the coefficient of variation with the moving average 
+            cv = (roughcv.rolling(box, min_periods=1).mean())
+            # make sure any not a numbers are numpy not a number so they aren't plotted and don't break the matplotlib
+            # then convert to numpy
+            avgs = (cv.replace(pd.NA, np.NaN)).to_numpy()
+
+            # return the dataframe as a numpy array 
             return avgs
 
 
