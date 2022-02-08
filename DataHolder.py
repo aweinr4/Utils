@@ -107,6 +107,7 @@ class DataHolder:
             presses = presses.loc[presses['n_sess'] <= drop]
             sessions = sessions.loc[sessions['n_sess'] <= drop]
         self.df = self._project_cols(presses,sessions,'n_sess',['starttime','sess_size'])
+        self._optimize_dtypes()
 
 
         #return index of first press in each session within a list of presses
@@ -119,11 +120,33 @@ class DataHolder:
 
 
     def _optimize_dtypes(self):
+        """
+        change each column in the dataframe to a more memory efficient datatype, columns and datatypes are specified in typedict.
+
+        Parameters
+        ----------
+        None
+        """
 
         typedict = {
             'reward' : 'category',
-            'n_sess' : 'category'
+            'n_sess' : int,
+            'n_in_sess' : int,
+            'interval' : float,
+            'tap_1_len' : float,
+            'tap_2_len' : float,
+            'ratio' : float,
+            'loss' : float,
+            'target' : 'category',
+            'upper' : 'category',
+            'lower' : 'category',
+            'next_target' : 'category',
+            'prev_target' : 'category'
         }
+
+        self.df['time'] = pd.to_datetime(self.df['time'])
+        for key,val in typedict.items():
+            self.df[key] = self.df[key].astype(val)
 
     @property
     def columns(self):
