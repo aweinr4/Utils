@@ -239,6 +239,32 @@ class DataAvgs:
         return targetframe
 
 
+    def Find_TargetFrame(self, target):
+        # have to find the targetframe that needs to be pulled 
+        i=0 
+        # while i is less than the number of targets,
+        while i < len(self.targetframe):
+            if (self.targetframe[i]).iloc[0,5] == target:
+                break
+            else: 
+                i += 1
+        
+        return self.targetframe[i]
+
+
+    def Find_i(self, target):
+        # have to find the targetframe that needs to be pulled 
+        i=0 
+        # while i is less than the number of targets,
+        while i < len(self.targetframe):
+            if (self.targetframe[i]).iloc[0,5] == target:
+                break
+            else: 
+                i += 1
+        
+        return i
+        
+
     """ --------------------------------------------------------------------------------------------------"""
 
     
@@ -289,16 +315,8 @@ class DataAvgs:
             Contains the moving average of the successes per session
 
         """
-        # have to find the targetframe that needs to be pulled 
-        i=0 
-        # while i is less than the number of targets,
-        while i < len(self.targetframe):
-            if (self.targetframe[i]).iloc[0,5] == target:
-                break
-            else: 
-                i += 1
         
-        data = self.targetframe[i]
+        data = self.Find_TargetFrame(target)
 
         # grab the percentage error for each trial 
         loss = (data['loss']).to_numpy()
@@ -313,12 +331,12 @@ class DataAvgs:
         df = pd.DataFrame(success, columns = ['Success'])
         # use the pandas built-in 'rolling' to calculate the moving average. 
         # and assign it to 'avgs'
-        avgs = (df.rolling(avgwindow, min_periods=1).mean())*100
+        avgs = (df.rolling(avgwindow, min_periods=10).mean())*100
         # return the averages
         return avgs
 
 
-    def Avgd_Interval(self, dataframe, avgwindow = 1000):
+    def Avgd_Interval(self, target, avgwindow = 1000, minwin = 1):
         """ Returns an array with the number of successes in each session where the trial IPI was 
         +- error % away from the target IPI. 
         
@@ -341,15 +359,20 @@ class DataAvgs:
 
         """
  
+        data = self.Find_TargetFrame(target)
+
         # grab the percentage error for each trial 
-        intervals = dataframe[['interval']]
+        intervals = data[['interval']]
 
         # use the pandas built-in 'rolling' to calculate the moving average. 
         # and assign it to 'avgs'
-        avgs = (intervals.rolling(avgwindow, min_periods=1).mean())
+        avgs = (intervals.rolling(avgwindow, min_periods=minwin).mean())
         # convert to a numpy array
         # return the averages
         return avgs
+
+    def MovingAverage(self, column, win = 1000, minwin = 1):
+        if column in self.columns
 
 
     def Variation(self, target, avgwindow = 100, boxcar = 300): 
@@ -377,20 +400,9 @@ class DataAvgs:
             The number in the targetframe that we are using (based on target wanted)
 
         """
-        # have to find the targetframe that needs to be pulled 
-        i=0 
-        # while i is less than the number of targets,
-        while i < len(self.targetframe):
-            # if the target for that target group is the same as the one we are looking for, 
-            if (self.targetframe[i]).iloc[0,5] == target:
-                # then keep the value for i and break the while/if loop
-                break
-            else: 
-                # if not, then up the count of i and try again. 
-                i += 1
-        
-        # with the right targetframe index, grab the targetframe. 
-        data = self.targetframe[i]
+
+        data = self.Find_TargetFrame(target)
+        i = self.Find_i(target)
 
         # grab the interval column from the prespecificied dataframe. 
         ipi = data['interval']

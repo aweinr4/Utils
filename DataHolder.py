@@ -108,6 +108,7 @@ class DataHolder:
             sessions = sessions.loc[sessions['n_sess'] <= drop]
         self.df = self._project_cols(presses,sessions,'n_sess',['starttime','sess_size'])
 
+
         #return index of first press in each session within a list of presses
     def _sess_start_indices(self,presslist):
         sesslist = np.sort(list(set(presslist['n_sess'])))
@@ -115,6 +116,7 @@ class DataHolder:
         for sess in sesslist[1:]:
             indexlist.append(indexlist[-1] + len(presslist.loc[presslist['n_sess'] == sess]))
         return (sesslist,indexlist)
+
 
     def _optimize_dtypes(self):
 
@@ -229,9 +231,10 @@ class DataHolder:
         Returns
         ---
         outval : series
-            row for the requestion session
+            row for the requested session
         """
         return self.get_first_press(f"n_sess == {n}")[self.sess_cols][col]
+
 
     def all_sessions(self,col):
         """ get the value of a parameter for all sessions
@@ -248,6 +251,7 @@ class DataHolder:
         """
         return [self.get_sess_params(i)[col] for i in self.set_of('n_sess')]
     
+
     def get_sess(self, n_sess):
         """ Get all presses within a particular session
         
@@ -316,6 +320,7 @@ class DataHolder:
             self.overwrite_press()
             self.overwrite_sess()
 
+
     def stats(self, stat, column, save = False):
         """ Compute a column of session statistics about a column from presses
     
@@ -348,6 +353,7 @@ class DataHolder:
             self.overwrite_sess(**{column + "_" + stat : statcol})
 
         return statcol
+
 
     def TrialSuccess(self, error, avgwindow = 100):
         """ Returns an array with the number of successes in each session where the trial IPI was 
@@ -385,6 +391,68 @@ class DataHolder:
         avgs = (df.rolling(avgwindow, min_periods=1).mean())*100
         # return the averages
         return avgs
+
+
+    def MovingAverage(self, columnname, win = 100, minwin = 10, err = 20):
+        """ Returns an array with the moving average of all trial data from the specified column/data. 
+        
+        
+        Parameters 
+        -------
+        columnname : str
+            REQUIRED
+            String of the column desired. Can be any of the columns in the dataframe, or 
+            'success' and 'cv' 
+
+        win : int
+            OPTIONAL
+            The number of sessions that should be used to calculate the moving average. 
+            Default is a window of 100 
+        
+        minwin : int
+            OPTIONAL
+            The number of sessions used to calculate a single average. Ex. minwin = 20 will 
+            Wait until the 20th row before calculating an average and place NaN in the first 19 rows.
+            Default is a window of 10
+
+        err : int
+            OPTIONAL
+            Whole number for the percentage bounds for the 'success' moving average. 
+            Default is 20 ( +-20% bounds ) 
+        
+        Returns 
+        ------
+        successes : np.array
+            Contains the number of succcesses for each session
+        avg : np.array
+            Contains the moving average of the successes per session
+
+        """
+
+        if columnname in self.df.columns: 
+            # pull the data out of the main dataframe
+            data = self.df[columnname]
+            # take the rolling average
+            avgs = (data.rolling(win, min_periods=minwin).mean())*100
+            return avgs 
+
+        if columnname == 'success':
+            # grab the percentage error for each trial 
+            loss = (self.df['loss']).to_numpy()
+            # define upper and lower bounds
+            upper = err/100
+            lower = -err/100 
+
+            #convert a bool array of wether or not losses are in between bounds to integer array 
+            success = ((loss <= upper) & (lower <= loss)).astype(int)
+            # make the data into a dataframe
+            df = pd.DataFrame(success, columns = ['Success'])
+            # use the pandas built-in 'rolling' to calculate the moving average. 
+            # and assign it to 'avgs'
+            avgs = (df.rolling(win, min_periods=minwin).mean())*100
+            # return the averages
+            return avgs
+
 
     def SessionSuccess(self, error, avgwindow = 5):
         """ Returns an array with the percentage of successes in each session where the trial IPI was 
@@ -428,6 +496,7 @@ class DataHolder:
         # return the two numpy lists.
         return success, avgs
 
+
     def overwrite_sess(self,**kwargs):
         """ overwrite the session csv using the location given when the class was instantiated
         
@@ -449,6 +518,7 @@ class DataHolder:
             for key,val in kwargs.items():
                 sessions[key] = val
         sessions.to_csv(self.sess_dir)
+
 
     def overwrite_press(self):
         """ overwrite the presses csv using the location given when the class was instantiated
