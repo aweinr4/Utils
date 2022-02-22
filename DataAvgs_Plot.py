@@ -15,9 +15,7 @@ import math as ma
 
 class AveragedRats:
 
-    # all of the colors for the plotting. We'll have issues if there are more than 8 rat groups compared simultaneously. 
-    farben= ['xkcd:dark red','xkcd:burnt orange', 'xkcd:goldenrod', 'xkcd:forest green', 'xkcd:royal blue','xkcd:dark purple', 'xkcd:violet', 'xkcd:rose']
-
+    
     def __init__(self, ratdata, ratname):
         """ Class for plotting the rat data. This works on a single rat group's data, or a few rat groups' data. 
         Interacts with the DataAvgs objects. 
@@ -33,6 +31,7 @@ class AveragedRats:
         self.names = ratname
         self.rat = ratdata
 
+        self.farben = ['xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey', 'xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey']
 
     
     def _xlabel(self, value, tick_number=None):
@@ -42,27 +41,9 @@ class AveragedRats:
             num = ma.floor(ma.log10(abs(value))/3)
         value = round(value / 1000**num, 2)
         return f'{value:g}'+' KM'[num]
+   
 
-
-    def _pretty(self, ax, targets = False, ylim = False):
-        # Aesthetic Changes ________________________________________________
-
-        if ylim != False:
-            plt.ylim((0, ylim)) 
-        else: 
-            ylim = np.max(targets)+100
-            plt.ylim((0,ylim))
-        
-        plt.xlabel('Trials', loc = "right")
-        # code from stackoverflow for formatting the axis as #'s of k 
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
-        
-        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=3).get_frame()
-        frame.set_edgecolor("black")
-        frame.set_boxstyle('square')
-
-
-    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300):
+    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, minimum = 0):
         """ Returns a plot of the average 1st tap length and average IPI for each session. 
         
         Parameters 
@@ -113,15 +94,14 @@ class AveragedRats:
 
         # Graph of IPI vs. trials 
         elif ptype == ("IPI" or "interval" or "Interval"):
-            self.IPI(target, window, minwindow)
+            self.IPI(target, window, minwindow, mine = minimum, save = savepath)
 
         # Graph of Success vs. trials 
         elif ptype == ("Success" or "success"):
-            self.Success(target, error, window, minwindow)
+            self.Success(target, error, window, minwindow, save = savepath)
 
         elif ptype == ("CV" or "cv"):
-            self.CV(target, window, minwindow, boxcar)
-
+            self.CV(target, window, minwindow, boxcar, mine = minimum, save = savepath)
 
 
     def Tap_vIPI(self, tap, target, window, minwindow):
@@ -166,7 +146,7 @@ class AveragedRats:
         plt.show()
 
 
-    def IPI(self, target, window, minwindow):
+    def IPI(self, target, window, minwindow, mine = 0, save = None):
         """ Returns a plot of the coefficient of variation for all of the rats that you give it 
 
         Params 
@@ -209,14 +189,24 @@ class AveragedRats:
         
         ax.hlines(target, 0, np.max(length), 'xkcd:grey', ":", label = "Target") 
 
-        self._pretty(ax, ylim = target + 100)
+        plt.ylim((mine, target+100))
         
-        plt.ylabel(f' Interval (miliseconds')
+        plt.xlabel('Trials', loc = "right")
+        # code from stackoverflow for formatting the axis as #'s of k 
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
+        
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=2).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+        
+        plt.ylabel(f' Interval (miliseconds)')
         plt.title(f'IPI for {target}ms target IPI')
+        if save != None:
+            fig.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
         plt.show() 
 
 
-    def Success(self, target, error, window, minwindow): 
+    def Success(self, target, error, window, minwindow, save = None): 
         """ Returns a plot of the coefficient of variation for all of the rats that you give it 
         
         Params 
@@ -250,23 +240,35 @@ class AveragedRats:
         fig, ax = plt.subplots()
 
         # for each of the rats being plotted, 
-        for rat, name in zip(self.rat, self.names):
+        for r, name in zip(range(len(self.rat)), self.names):
             # find the coefficient of variation for this rat and then plot it. 
-            success = rat.MovingAverage(target, "Success", win = window, minwin = minwindow, err = error)
+            success = self.rat[r].MovingAverage(target, "Success", win = window, minwin = minwindow, err = error)
             
             # define the x axis based on the length of the successes
             trials = range(success.shape[0])
             # plot with a different color for each rat in the ratlist. 
-            ax.plot(trials, success, label=f'{name} group')
+            ax.plot(trials, success, label=f'{name} group', color = self.farben[r])
 
-        self._pretty(ax, ylim = 100)
+        # Aesthetic Changes ________________________________________________
+
+        plt.ylim((0,100))
+        
+        plt.xlabel('Trials', loc = "right")
+        # code from stackoverflow for formatting the axis as #'s of k 
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
+        
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=2).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
         
         plt.ylabel(f'Percent of trials within limit (moving {window} trial window) ')
         plt.title(f'Success Rate within +-{error}% of {target}ms target IPI')
+        if save != None:
+            fig.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
         plt.show() 
 
 
-    def CV(self, target, window, minwindow, box): 
+    def CV(self, target, window, minwindow, box, mine = 0, save = None): 
         """ Returns a plot of the coefficient of variation for all of the rats that you give it 
         
         Params 
@@ -319,11 +321,153 @@ class AveragedRats:
             # plot with a different color for each rat in the ratlist. 
             ax.plot(trials, cv, color = self.farben[r], label=f'{self.names[r]} group')
 
-        ylimit = np.max(height) + 0.1
-        self._pretty(ax, ylim = ylimit) 
+        ylimit = np.max(height) + 0.02
+        plt.ylim((mine,ylimit))
+        
+        plt.xlabel('Trials', loc = "right")
+        # code from stackoverflow for formatting the axis as #'s of k 
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
+        
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=3).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
 
         plt.ylabel('Coefficient of Variation')
         plt.title(f'Coefficient of Variation for {target}ms target IPI')
+        if save != None:
+            fig.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
         plt.show()
 
+
+
+
+
+class Rat2000:
+
+    def __init__(self, rats, labels):
+        self.rats = rats 
+        self.labels = labels
+
+        self.farben = ['xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey', 'xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey']
+        self.pattern = ['-', '-', '-', '-', ":", ":", ":", ":"]
+
+
+    def Plot(self, ptype = "IPI", target = 700, error = 20, save = False):
+
+        # Graph of IPI vs. trials 
+        if ptype == ("IPI" or "interval" or "Interval"):
+            self.IPI(target, self.labels, save)
+
+        # Graph of Success vs. trials 
+        elif ptype == ("Success" or "success"):
+            self.Success(target, error, self.labels, save)
+
+        elif ptype == ("CV" or "cv"):
+            self.CV(target, self.labels, save)
+
+
+    def IPI(self, target, labels, save):
+        ipis = []
+        tar = f'{target}'
+        for rat in self.rats:
+            ipis.append(rat.df.loc[tar].to_numpy()[0])
+        
+        plt.style.use('default') 
+        
+        for i in range(len(self.rats)): 
+            plt.bar(i+1, height = self.rats[i].df.loc[tar].to_numpy()[0], label = labels[i], color = self.farben[i])
+        
+        for i in range(len(self.rats)):
+            ys = (self.rats[i].IPIs)[0]
+            xs = np.full(len(ys), i+1)
+            plt.scatter(xs, ys, s=6, c='black')
+
+        ys = (self.rats[2].IPIs)[1]
+        xs = np.full(len(ys), 3)
+        plt.scatter(xs, ys, s=6, c='black', label = "Individual Rats' Performance")
+        
+        plt.xticks(np.arange(len(self.rats))+1, labels)
+        plt.ylim((0, target+100))
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=2).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+        plt.title(f'Mean IPI for last 2000 trials -- {target}ms Target IPI')
+        plt.ylabel("Interpress Interval (miliseconds)")
+        plt.xlabel("Rat Groups") 
+
+        if save != False:
+            plt.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
+            plt.show()
+        else:
+            plt.show()
+
+
+    def Success(self, target, error, labels, save):
+        tar = f'{target}'
+        
+        plt.style.use('default') 
+
+        for i in range(len(self.rats)): 
+            plt.bar(i+1, height = self.rats[i].df.loc[tar].to_numpy()[2], label = labels[i], color = self.farben[i])
+        
+        for i in range(len(self.rats)):
+            ys = (self.rats[i].SRs)[0]
+            xs = np.full(len(ys), i+1)
+            plt.scatter(xs, ys, s=6, c='black')
+        
+        ys = (self.rats[2].SRs)[1]
+        xs = np.full(len(ys), 3)
+        plt.scatter(xs, ys, s=6, c='black', label = "Individual Rats' Performance")
+
+        plt.xticks(np.arange(len(self.rats))+1, labels)
+        plt.ylim((0,100))
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=2).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+        plt.title(f'Mean Success Rate for last 2000 trials -- {target}ms Target IPI')
+        plt.ylabel(f'Percent of Rats within {error}% of target IPI')
+        plt.xlabel("Rat Groups")
+
+        if save != False:
+            plt.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
+            plt.show()
+        else:
+            plt.show()
+
+
+    def CV(self, target, labels, save):
+        cvs = []
+        tar = f'{target}'
+        for rat in self.rats:
+            cvs.append(rat.df.loc[tar].to_numpy()[1])
+        
+        plt.style.use('default') 
+        
+        for i in range(len(self.rats)): 
+            plt.bar(i+1, height = self.rats[i].df.loc[tar].to_numpy()[1], label = labels[i], color = self.farben[i])
+        
+        
+        for i in range(len(self.rats)):
+            ys = (self.rats[i].CVs)[0]
+            xs = np.full(len(ys), i+1)
+            plt.scatter(xs, ys, s=6, c='black')
+
+        ys = (self.rats[2].CVs)[1]
+        xs = np.full(len(ys), 3)
+        plt.scatter(xs, ys, s=6, c='black', label = "Individual Rats' last 2000 trial avg")
+        
+        plt.xticks(np.arange(len(self.rats))+1, labels)
+        plt.ylim((0,0.35))
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=2).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+        plt.title(f'Mean CV for last 2000 trials -- {target}ms Target IPI')
+        plt.ylabel("Coefficient of Variation")
+        plt.xlabel("Rat Groups") 
+
+        if save != False:
+            plt.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
+            plt.show()
+        else:
+            plt.show()
 
