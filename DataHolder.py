@@ -6,7 +6,7 @@ class DataHolder:
     """ Class for holding the rat press data files """
 
 
-    def __init__(self, presses = "get", sessions = "get", dropafter = 0):
+    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0):
         """ Initialization takes two csv files, one with press informaion and one with session information. 
         A single dataframe is created that stores all the information about each press.
         If there is a drop after argument, all of the sessions after that number will be dropped 
@@ -46,6 +46,8 @@ class DataHolder:
         # do preprocessing of the dataframes. 
         self._init_df(dropafter)
 
+        # drop beginning trials if nececary 
+        self.df = self.df.copy().iloc[dropfirst:,:]
 
 
     def __getitem__(self,key):

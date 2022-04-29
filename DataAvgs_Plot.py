@@ -43,7 +43,7 @@ class AveragedRats:
         return f'{value:g}'+' KM'[num]
    
 
-    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, minimum = 0):
+    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False):
         """ Returns a plot of the average 1st tap length and average IPI for each session. 
         
         Parameters 
@@ -94,7 +94,7 @@ class AveragedRats:
 
         # Graph of IPI vs. trials 
         elif ptype == ("IPI" or "interval" or "Interval"):
-            self.IPI(target, window, minwindow, mine = minimum, save = savepath)
+            self.IPI(target, window, minwindow, mine = ymin, save = savepath, max = ymax)
 
         # Graph of Success vs. trials 
         elif ptype == ("Success" or "success"):
@@ -146,7 +146,7 @@ class AveragedRats:
         plt.show()
 
 
-    def IPI(self, target, window, minwindow, mine = 0, save = None):
+    def IPI(self, target, window, minwindow, mine = 0, save = None, max = None):
         """ Returns a plot of the coefficient of variation for all of the rats that you give it 
 
         Params 
@@ -189,7 +189,10 @@ class AveragedRats:
         
         ax.hlines(target, 0, np.max(length), 'xkcd:grey', ":", label = "Target") 
 
-        plt.ylim((mine, target+100))
+        if max == False:
+            plt.ylim((mine, target+100))
+        if max != False:
+            plt.ylim((mine, max)) 
         
         plt.xlabel('Trials', loc = "right")
         # code from stackoverflow for formatting the axis as #'s of k 

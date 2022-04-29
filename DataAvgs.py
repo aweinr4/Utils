@@ -162,7 +162,7 @@ class DataAvgs:
             # for each of the dataframes within the target group, 
             for frame in target:
                 # grab only the columns that we want to average over
-                press = frame.copy()[["interval", "tap_1_len", "tap_2_len", "ratio", "loss"]]
+                press = frame.copy()[["interval", "tap_1_len", "tap_2_len", "ratio", "loss", "upper", "lower"]]
                 # append them onto the dataframe
                 dataframes.append(press)
             # append each full dataframe to the target group dataframe
@@ -241,14 +241,14 @@ class DataAvgs:
         return targetframe
 
     
-    """ --------------------------------------------------------------------------------------------------"""
+    """ -------------------------------------------------------------------------------------------------- """
 
     def Find_TargetFrame(self, target):
         # have to find the targetframe that needs to be pulled 
         i=0 
         # while i is less than the number of targets,
         while i < len(self.targetframe):
-            if (self.targetframe[i]).iloc[0,5] == target:
+            if (self.targetframe[i]).iloc[0,7] == target:
                 break
             else: 
                 i += 1
@@ -899,7 +899,7 @@ class ChunkyMonkey:
 class SessionAverages:
 
 
-    def __init__(self, rats, target, numsessions = 10, window = 50, minwindow = 10, length = False): 
+    def __init__(self, rats, target, columnname, numsessions = 10, window = 50, minwindow = 10, length = False): 
         """ Initialize the class. 
         
         Params 
@@ -921,7 +921,7 @@ class SessionAverages:
         else: 
             self.length = self._calc_median_length(rats, target) 
         
-        self.eq_sess = self._calc_isometric_sess(rats, target)
+        self.eq_sess = self._calc_isometric_sess(rats, target, columnname)
 
         self.X_len_sess = self._calc_by_session(numsessions)
 
@@ -972,7 +972,7 @@ class SessionAverages:
         return np.median(sesslens)
 
 
-    def _calc_isometric_sess(self, rats, target): 
+    def _calc_isometric_sess(self, rats, target, columnname): 
         """ Find ??? 
         
         Params 
@@ -1005,7 +1005,7 @@ class SessionAverages:
                 if len(data) > 50:
                     # Interpolate if the length of the session is less than the median
                     if len(data) < self.length:
-                        ipi = data['interval'].to_numpy()
+                        ipi = data[f'{columnname}'].to_numpy()
                         f = sp.interpolate.interp1d(np.arange(len(ipi)), ipi, kind = 'slinear')
                         # we need interp_val datapoints but we're pulling from a smaller dataset.. 
                         # we need to sample at decimal point values between 0 and len(og data) 
@@ -1020,7 +1020,7 @@ class SessionAverages:
                     # Randomly sample if the length of the session is greater than the median. 
                     if len(data) >= self.length:
                         # take a copy of the interval
-                        ipi = data[['interval']].copy()
+                        ipi = data[[f'{columnname}']].copy()
                         # randomly select N rows, where N is the median session length
                         randind = np.random.choice(np.arange(len(ipi)), int(self.length), replace = False)
                         # make a copy of the ipi dataframe with only the random id's pulled out 
@@ -1030,7 +1030,7 @@ class SessionAverages:
                         # reset the index from N <-> N+length to 0 <-> length 
                         new.reset_index(drop=True, inplace = True)
                         # rename the column from 'interval' to the session #
-                        new.rename(columns = {'interval': f'{j}'}, inplace = True)
+                        new.rename(columns = {f'{columnname}': f'{j}'}, inplace = True)
                         # append the data list onto the growing dataframe. 
                         store.append(new) 
             
