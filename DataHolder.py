@@ -6,7 +6,7 @@ class DataHolder:
     """ Class for holding the rat press data files """
 
 
-    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0):
+    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0, df = None):
         """ Initialization takes two csv files, one with press informaion and one with session information. 
         A single dataframe is created that stores all the information about each press.
         If there is a drop after argument, all of the sessions after that number will be dropped 
@@ -19,7 +19,11 @@ class DataHolder:
         sessions : str, optional
             string containing the directory of the csv with session info, by default will open a ui to select file.
         dropafter : int, optional
-            defaults to 0, this won't drop anything 
+            defaults to 0, this won't drop anything
+        dropfirst : int, optional
+            drop this number of trials from the beginning of the dataframe
+        df : pd.Dataframe or None, optional
+            gives the option to skip csvs entirely and use a dataframe directly, if this value is included then presses and sessions are ignored.
 
         Returns
         -------
@@ -27,24 +31,30 @@ class DataHolder:
             instance of DataHolder class, essentially a dataframe
         """
 
-        # If the initialization of the class is left blank, 
-        # open a file dialog to make the user chose the press info file. 
-        if presses == "get":
-            self.press_dir = get_file()
-        # If the user already indicated a file, use it.
-        else:
-            self.press_dir = presses
+        if isinstance(df,type(None)):
 
-        # If the initialization of the class is left blank, 
-        # open a file dialog to make the user chose the press info file.
-        if sessions == "get":
-            self.sess_dir = get_file()
-        # If the user already indicated a file, use it.
-        else:
-            self.sess_dir = sessions
+            # If the initialization of the class is left blank, 
+            # open a file dialog to make the user chose the press info file. 
+            if presses == "get":
+                self.press_dir = get_file()
+            # If the user already indicated a file, use it.
+            else:
+                self.press_dir = presses
 
-        # do preprocessing of the dataframes. 
-        self._init_df(dropafter)
+            # If the initialization of the class is left blank, 
+            # open a file dialog to make the user chose the press info file.
+            if sessions == "get":
+                self.sess_dir = get_file()
+            # If the user already indicated a file, use it.
+            else:
+                self.sess_dir = sessions
+
+            # do preprocessing of the dataframes. 
+            self._init_df(dropafter)
+
+        else:
+            self.df = df
+            self._optimize_dtypes()
 
         # drop beginning trials if nececary 
         self.df = self.df.copy().iloc[dropfirst:,:]
@@ -144,9 +154,11 @@ class DataHolder:
             'prev_target' : 'category'
         }
 
-        self.df['time'] = pd.to_datetime(self.df['time'])
+        if 'time' in self.df.columns:
+            self.df['time'] = pd.to_datetime(self.df['time'])
         for key,val in typedict.items():
-            self.df[key] = self.df[key].astype(val)
+            if key in self.df.columns:
+                self.df[key] = self.df[key].astype(val)
 
     @property
     def columns(self):
