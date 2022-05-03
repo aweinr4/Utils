@@ -32,7 +32,7 @@ class AveragedRats:
         self.rat = ratdata
 
         self.farben = ['xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey', 'xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey']
-
+        self.colors = ['xkcd:wine red', 'xkcd:grape', 'xkcd:dark lavender', 'xkcd:blueberry', 'xkcd:ocean blue', 'xkcd:turquoise', 'xkcd:light teal', 'xkcd:sage green', 'xkcd:yellow ochre', 'xkcd:pumpkin', 'xkcd:burnt umber']
     
     def _xlabel(self, value, tick_number=None):
         if abs(value) < 1000:
@@ -43,7 +43,7 @@ class AveragedRats:
         return f'{value:g}'+' KM'[num]
    
 
-    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False):
+    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False, target1 = 300, target2 = 500, norm = False):
         """ Returns a plot of the average 1st tap length and average IPI for each session. 
         
         Parameters 
@@ -101,7 +101,45 @@ class AveragedRats:
             self.Success(target, error, window, minwindow, save = savepath)
 
         elif ptype == ("CV" or "cv"):
-            self.CV(target, window, minwindow, boxcar, mine = minimum, save = savepath)
+            self.CV(target, window, minwindow, boxcar, mine = minwindow, save = savepath)
+
+        elif ptype == ("DeltaIPI" or "deltaIPI" or "Delta IPI"):
+            self.DelIPI(target1, target2, window, minwindow, savepath, norm) 
+
+
+    def DelIPI(self, target1, target2, win, minwindow, save, norm = False): 
+        """ Plots the change in interval produced for the averaged data. """
+        # check to see if the rats are in a list. If not, that means there is only one rat in the list. 
+        if not isinstance(self.rat, list): 
+            # make the item into a "list" so it can be iterated over the same code. 
+            self.rat = [self.rat] 
+        
+        # make a list of numbers to iterate over for the colors. 
+        cols = np.arange(len(self.rat)) 
+
+        # define the plotting style
+        plt.style.use('default') 
+
+        # now that all posibilities of self.rat are lists, 
+        for rat, name, c in zip(self.rat, self.names, cols): 
+            delipi = rat.DeltaIPI(target1, target2, norm, window = win, minwin = minwindow)
+            if delipi == False: 
+                break 
+            trials = range(len(delipi))
+
+            plt.plot(trials, delipi, color = self.colors[c], label = f'{name}')
+
+        plt.ylim((-50,target2-target1))
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=3).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+        plt.xlabel("Tap Number")
+        plt.ylabel(r'$\Delta$IPI (ms)') 
+        plt.title(r'$\Delta$IPI' + f' between {target1}ms and {target2}ms Trials') 
+
+        if save != None: 
+            plt.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
+        plt.show() 
 
 
     def Tap_vIPI(self, tap, target, window, minwindow):

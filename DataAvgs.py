@@ -257,15 +257,28 @@ class DataAvgs:
 
 
     def Find_i(self, target):
+        # Find the i of the targetframe that needs to be pulled. 
+
+        # make an empty list for the targets. 
+        targs = [] 
+        for i in range(len(self.targetframe)):
+            # append all of the target values inside the frame to the targs list
+            targs.append(self.targetframe[i].iloc[0,7])
+
+        # if the target does not exist within this data, 
+        if 500 not in targs:
+            # return none if it's not
+            return False
+        # otherwise iterate thru the targetframes to find the i. 
+        else:
         # have to find the targetframe that needs to be pulled 
-        i=0 
-        # while i is less than the number of targets,
-        while i < len(self.targetframe):
-            if (self.targetframe[i]).iloc[0,5] == target:
-                break
-            else: 
-                i += 1
-        
+            i=0 
+            # while i is less than the number of targets,
+            while i < len(self.targetframe):
+                if (self.targetframe[i]).iloc[0,7] == target:
+                    break
+                else: 
+                    i += 1
         return i
   
     
@@ -380,6 +393,67 @@ class DataAvgs:
 
             # return the dataframe as a numpy array 
             return avgs
+
+
+    def DeltaIPI(self, target1, target2, norm, window = 2000, minwin = 100): 
+        """Returns an array with the change in IPI's produced by a rat group. 
+        
+        Parameters 
+        -------
+        target1 : int 
+            The numerical value of the first target desired. 
+
+        target2 : int 
+            The numerical value of the second target desired. 
+
+        norm : str
+            Whether or not you want the data normalized to one. 
+        
+        window : int
+            Length of trials to the moving average. Default is 2000
+        
+        minwin : int 
+            Length for the start of the moving average. Default is 100
+
+        Returns 
+        ------
+        avgs : np.array
+            Contains the change in interval
+        """
+
+        i = self.Find_i(target1)
+        # if i is none, skip and return a none
+        if i == False:
+            return False 
+        else:
+            t1 = self.targetframe[i]['interval'].to_numpy()
+
+        i = self.Find_i(target2)
+        # if i is none, skip and return a none
+        if i == False:
+            return np.asarray([])
+        else:
+            t2 = self.targetframe[i]['interval'].to_numpy()
+        
+        # cut the trials to the same length 
+        if len(t1) > len(t2):
+            cut = len(t2)
+        if len(t2) > len(t1):
+            cut = len(t1)
+
+        tt1 = t1[:cut]
+        tt2 = t2[:cut] 
+        
+        # find difference of each tap
+        d_ipi = (tt2-tt1)
+        # divide by the supposed max distance if norm is true
+        if norm != False:
+            d_ipi = d_ipi/(target2-target1) 
+        # then take the moving average to smooth everything out. 
+        d_ipi = pd.Series(d_ipi).rolling(window, min_periods=minwin).mean()
+
+        # return it
+        return d_ipi
 
 
     def CutByRat(self, dataframe, i, cv): 

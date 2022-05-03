@@ -44,6 +44,7 @@ class RawRats:
             # if the item is already a list, then make it a self. object
             self.rat = ratdata  
 
+
     def _xlabel(self, value, tick_number=None):
         if abs(value) < 1000:
             num = 0 

@@ -111,15 +111,13 @@ class DataHolder:
         self.df = self._project_cols(presses,sessions,'n_sess',['starttime','sess_size'])
         self._optimize_dtypes()
 
-
-        #return index of first press in each session within a list of presses
     def _sess_start_indices(self,presslist):
+        """ return index of first press in each session within a list of presses """
         sesslist = np.sort(list(set(presslist['n_sess'])))
         indexlist = [0]
         for sess in sesslist[1:]:
             indexlist.append(indexlist[-1] + len(presslist.loc[presslist['n_sess'] == sess]))
         return (sesslist,indexlist)
-
 
     def _optimize_dtypes(self):
         """
