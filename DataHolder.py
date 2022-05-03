@@ -163,6 +163,11 @@ class DataHolder:
     @property
     def columns(self):
         return self.df.columns
+
+    @property
+    def sess_cols(self):
+        """Return a list of columns that pertain to session values."""
+        return [i for i in self.columns if i in ['target','upper','lower','next_target','prev_target','n_sess']]
         
     def get_by_target(self,target,col =slice(None)):
         """ Returns all of the presses that have a particular target. 
