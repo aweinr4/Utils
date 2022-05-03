@@ -328,7 +328,9 @@ class DataHolder:
         ---
         none
         """
-        self.df[self.df['target'] == old,'target'] = new
+        for n in self.df.index:
+            if self.df.loc[n,'target'] == old:
+                self.df.loc[n,'target'] = new
 
         if save:
             self.overwrite_sess()
