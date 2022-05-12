@@ -43,7 +43,7 @@ class AveragedRats:
         return f'{value:g}'+' KM'[num]
    
 
-    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False, target1 = 300, target2 = 500, norm = False):
+    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False, target2 = 500, norm = False):
         """ Returns a plot of the average 1st tap length and average IPI for each session. 
         
         Parameters 
@@ -104,7 +104,7 @@ class AveragedRats:
             self.CV(target, window, minwindow, boxcar, mine = minwindow, save = savepath)
 
         elif ptype == ("DeltaIPI" or "deltaIPI" or "Delta IPI"):
-            self.DelIPI(target1, target2, window, minwindow, savepath, norm) 
+            self.DelIPI(target, target2, window, minwindow, savepath, norm) 
 
 
     def DelIPI(self, target1, target2, win, minwindow, save, norm = False): 
