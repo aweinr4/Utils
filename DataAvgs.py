@@ -229,6 +229,21 @@ class DataAvgs:
             newpress = pd.concat(data)
             # use builtin .groupby() to stack the frames and then average. 
             avg = newpress.groupby(level=0).mean()
+            # If the number of columns in newpress is not equal to the # of columns in 'avg', then column(s) have been dropped. 
+            if len(avg.columns) != len(newpress.columns):
+                # pull the columns from the data
+                col1 = data[0].columns.to_list()
+                # pull the columns from the averaged data, 
+                col2 = avg.columns.to_list()
+                # find the differences between the two. 
+                diff = list(set(col1).difference(col2))
+                # pull the columns that have been dropped out of the newpress frame
+                missing = data[0].copy()[diff]
+                # append that column to the avg dataframe. 
+                for i in range(len(diff)):
+                    avg[f'{missing.columns[i]}'] = missing.iloc[:,i]
+                # then continue... 
+
             # reset the indicies to be from 0 to N
             avg.reset_index()
             # automatically gets rid of the target column if we had it, so add that on for future reference 
