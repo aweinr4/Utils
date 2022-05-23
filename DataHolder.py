@@ -1,12 +1,13 @@
 
 from .simple import *
 import pandas as pd
+import h5py as h5
 
 class DataHolder:
     """ Class for holding the rat press data files """
 
 
-    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0, df = None):
+    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0, h5 = None):
         """ Initialization takes two csv files, one with press informaion and one with session information. 
         A single dataframe is created that stores all the information about each press.
         If there is a drop after argument, all of the sessions after that number will be dropped 
@@ -31,7 +32,7 @@ class DataHolder:
             instance of DataHolder class, essentially a dataframe
         """
 
-        if isinstance(df,type(None)):
+        if isinstance(h5,type(None)):
 
             # If the initialization of the class is left blank, 
             # open a file dialog to make the user chose the press info file. 
@@ -53,7 +54,7 @@ class DataHolder:
             self._init_df(dropafter)
 
         else:
-            self.df = df
+            self.df = self._df_from_h5(h5)
             self._optimize_dtypes()
 
         # drop beginning trials if nececary 
@@ -160,6 +161,40 @@ class DataHolder:
             if key in self.df.columns:
                 self.df[key] = self.df[key].astype(val)
 
+    def _df_from_h5(self, loc):
+        """Return a df similiar to those used by DataHolder from the type of h5 file created by parser.
+        
+        Parameters
+        ----------
+        loc : str
+            Path to h5 file.
+    
+        Returns
+        -------
+        out : pd.DataFrame
+            Datafrom from h5 file."""
+
+        out_dict = {i:[] for i in ['tap_1_len','tap_2_len','reward','n_sess','n_in_sess','interval','ratio','loss','target','upper','lower']}
+        with h5.File(loc, 'r') as f:
+            for dset in f:
+                t_1_len = f[dset]['Tap 1']['Off'] - f[dset]['Tap 1']['On']
+                interval = f[dset]['Interval'][:].astype(float)
+                trials = f[dset].attrs['Trials in Session']
+                target = f[dset].attrs['Target']
+                upper = f[dset].attrs['Upper']
+                lower = f[dset].attrs['Lower']
+                out_dict['tap_1_len'] = out_dict['tap_1_len'] + list(t_1_len)
+                out_dict['tap_2_len'] = out_dict['tap_2_len'] + list(f[dset]['Tap 2']['Off'] - f[dset]['Tap 2']['On'])
+                out_dict['reward'] = out_dict['reward'] + list(f[dset]['Reward']['Value'])
+                out_dict['n_sess'] = out_dict['n_sess'] + [int(dset.split('_')[-1])] * trials
+                out_dict['n_in_sess'] = out_dict['n_in_sess'] + list(range(1,trials+1))
+                out_dict['interval'] = out_dict['interval'] + list(interval)
+                out_dict['ratio'] = out_dict['ratio'] + list(t_1_len/interval)
+                out_dict['loss'] = out_dict['loss'] + list((interval - target)/target)
+                for key in ['target','upper','lower']:
+                    out_dict[key] = out_dict[key] + [eval(key)] * trials
+
+        return pd.DataFrame(out_dict)
     @property
     def columns(self):
         return self.df.columns
