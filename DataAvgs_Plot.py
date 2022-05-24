@@ -43,7 +43,7 @@ class AveragedRats:
         return f'{value:g}'+' KM'[num]
    
 
-    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False, target1 = 300, target2 = 500, norm = False):
+    def Plot(self, ptype = 'IPI', target = 700, window = 1000, minwindow = 100, error = 10, boxcar = 300, savepath = None, ymin = 0, ymax = False, target2 = 500, norm = False):
         """ Returns a plot of the average 1st tap length and average IPI for each session. 
         
         Parameters 
@@ -101,10 +101,11 @@ class AveragedRats:
             self.Success(target, error, window, minwindow, save = savepath)
 
         elif ptype == ("CV" or "cv"):
-            self.CV(target, window, minwindow, boxcar, mine = minwindow, save = savepath)
+            self.CV(target, window, minwindow, boxcar, ymin, savepath)
 
         elif ptype == ("DeltaIPI" or "deltaIPI" or "Delta IPI"):
-            self.DelIPI(target1, target2, window, minwindow, savepath, norm) 
+            self.DelIPI(target, target2, window, minwindow, savepath, norm) 
+
 
 
     def DelIPI(self, target1, target2, win, minwindow, save, norm = False): 
@@ -123,13 +124,15 @@ class AveragedRats:
         # now that all posibilities of self.rat are lists, 
         for rat, name, c in zip(self.rat, self.names, cols): 
             delipi = rat.DeltaIPI(target1, target2, norm, window = win, minwin = minwindow)
-            if delipi == False: 
-                break 
             trials = range(len(delipi))
 
             plt.plot(trials, delipi, color = self.colors[c], label = f'{name}')
-
-        plt.ylim((-50,target2-target1))
+        
+        #if norm != False: 
+            #plt.ylim((0,1)) 
+        #else: 
+            #plt.ylim((-50,target2-target1))
+        
         frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=3).get_frame()
         frame.set_edgecolor("black")
         frame.set_boxstyle('square')
@@ -177,7 +180,15 @@ class AveragedRats:
         # plot a line at where the target should be. 
         ax.hlines(target, 0, np.max(length), colors = ['xkcd:grey'], linestyles = ":", label="Target")
 
-        self._pretty(ax, ylim = target +100)
+        plt.ylim((0,target +100))
+        
+        plt.xlabel('Trials', labelpad = -10, loc = "right")
+        # code from stackoverflow for formatting the axis as #'s of k 
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
+        
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.1), fancybox=True, ncol=3).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
 
         plt.ylabel(' Time (ms)')
         plt.title(f'Tap {tap} & Interval')
@@ -309,7 +320,7 @@ class AveragedRats:
         plt.show() 
 
 
-    def CV(self, target, window, minwindow, box, mine = 0, save = None): 
+    def CV(self, target, window, minwindow, box, mine, save): 
         """ Returns a plot of the coefficient of variation for all of the rats that you give it 
         
         Params 
@@ -378,8 +389,6 @@ class AveragedRats:
         if save != None:
             fig.savefig(save, bbox_extra_artists=(frame,), bbox_inches = 'tight') 
         plt.show()
-
-
 
 
 
@@ -512,3 +521,212 @@ class Rat2000:
         else:
             plt.show()
 
+
+class ChunkyRats:
+    # FOR THE ChunkyMonkey class
+
+    def __init__(self, ratdata, ratname, targets):
+        """ Class for plotting the rat data. This works on a single rat's data, or a few rat's data. 
+        The rats' data are plotted without averaging. 
+        Interacts with the DataHolder objects
+        
+        Parameters 
+        ---- 
+        ratdata : object 
+            Name of the object returned from the DataHolder(presses, session) class
+        ratname : string 
+            Name of the rat to be displayed on the plots. 
+        """
+
+        # check to see if the rat names are in a list. If not, that means there is only one rat name in the list. 
+        if not isinstance(ratname, list): 
+            # make the item into a "list" so it can be iterated over the same code. 
+            self.names = [ratname]       
+        else: 
+            self.names = ratname 
+
+        # check to see if the rat data is in a list. If not, that means there is only one rat data in the list 
+        if not isinstance(ratdata, list):
+            # make the item into a "list" so it can be iterated over the same code 
+            self.rat = [ratdata] 
+        else:
+            # if the item is already a list, then make it a self. object
+            self.rat = ratdata  
+        
+        # check to see if the rat data is in a list. If not, that means there is only one rat data in the list 
+        if not isinstance(targets, list):
+            # make the item into a "list" so it can be iterated over the same code 
+            self.targets = [targets] 
+        else:
+            # if the item is already a list, then make it a self. object
+            self.targets = targets  
+
+        self.colors = ['xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey', 'xkcd:slate grey', 'xkcd:deep green', 'xkcd:greyish green', 'xkcd:cool grey']
+
+    def _xlabel(self, value, tick_number=None):
+        if abs(value) < 1000:
+            num = 0 
+        else:
+            num = ma.floor(ma.log10(abs(value))/3)
+        value = round(value / 1000**num, 2)
+        return f'{value:g}'+' KM'[num]
+
+
+    def _pretty(self, ax, targets, ylim = False):
+        # Aesthetic Changes ________________________________________________
+
+        if ylim != False:
+            plt.ylim((0, ylim)) 
+        else: 
+            ylim = np.max(targets)+100
+            plt.ylim((0,ylim))
+        
+        plt.xlabel('Trials', labelpad = -10, loc = "right")
+        # code from stackoverflow for formatting the axis as #'s of k 
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(self._xlabel))
+        
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.1), fancybox=True, ncol=3).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+
+
+    def Plot(self, ptype = 'IPI', window = 1000, minwindow = 100, error = 10, boxcar = 300, ymin=0, ymax=900, numsessions = 10, savepath=False):
+        """ Returns a plot of the average 1st tap length and average IPI for each session. 
+        
+        Parameters 
+        ---- 
+        ptype : str
+            REQUIRED
+            Name of the plot that you want to make. 
+            allowed strings: "IPI", "Success", "Tap1", "Tap2" 
+        
+        window : int 
+            REQUIRED
+            Number for the window for moving average calculatons 
+            Default is 1000 
+
+        minwindow : int 
+            REQUIRED
+            Number for the minimum window for moving average calculatons 
+            Default is 100
+        
+        error : int
+            Only required for Success plots
+            Number for the error margins for the Success plots. 
+            Default is 10% 
+        
+        Returns 
+        ---- 
+        unnamed : matplotlib plot 
+        """
+        
+        # Graph of IPI vs. trials 
+        if ptype == "IPI":
+            self.IPI(savepath)
+
+        # Graph of Success vs. trials 
+        elif ptype == "Success":
+            self.Success(error, savepath)
+        
+        elif ptype == ("CV" or "cv"):
+            self.CV(window, minwindow, boxcar)
+   
+
+    def IPI(self, savepath):
+        """ Plots the Interpress interval versus the number of trials"""
+        
+        k = len(self.rat) 
+        # define a blank list for finding the shortest Chunk -> will be used for plotting purposes. 
+        lens = []
+        for r in self.rat:
+            for i in range(len(r.intervals)):
+                lens.append(((r.Find_IPIDiff())['Mean']).shape[0])
+        cutoff = min(lens) 
+
+        # create the blank plot 
+        plt.style.use('default')
+        params = {'mathtext.default': 'regular' }          
+        plt.rcParams.update(params)
+        fig = plt.figure(figsize=(15,6))
+        # define the xs list 
+        xs = np.arange(cutoff) 
+
+        for rat, n in zip(self.rat, range(len(self.rat))): 
+            # calculate the chunk
+            Chunk = rat.Find_IPIDiff()[:cutoff]
+            # plot the means 
+            plt.bar(xs*(k+1)+n, Chunk['Mean'].to_numpy(), color = self.colors[n], label = self.names[n])
+            for i in range(1, Chunk.shape[1]-1):
+                # plot each of the individual rats for each chunk average. 
+                plt.scatter(xs*(k+1)+n, Chunk[i].to_numpy(), s=6, c='black')
+            
+        plt.scatter(xs*(k+1)+n, Chunk[0].to_numpy(), s=6, c='black', label = "Individual Rats' Average")
+
+            
+        # Relabel the ticks to be the session number. 
+        plt.xticks(ticks=xs*(k+1)+(k-1)/2, labels=xs+1) 
+
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=4).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+        title = plt.title(f'IPI Difference between {self.targets[0]}ms & {self.targets[1]}ms target trials ')
+
+        plt.ylabel("Difference (ms)")
+        plt.xlabel("Nth group of 1000 trials") 
+
+        # if the savepath is defined, save the figure.
+        if savepath != False:
+            plt.savefig(savepath, bbox_extra_artists=(frame, title), bbox_inches = 'tight') 
+        plt.show()
+
+    def Success(self, error, savepath):
+        """ Plots the Success within +- error % of the IPI versus the number of trials
+        
+        Error = The error # that you gave to the ChunkyMonkey object -- error is included for plot labeling, not for calculations"""
+        rat = self.rat[0]
+
+        # define a blank list for finding the shortest Chunk -> will be used for plotting purposes. 
+        lens = []
+        # find the shortest means list (will be determined by # of sessions the rat had)
+        for i in range(len(rat.success)):
+            lens.append(((rat.success[i])['Mean']).shape[0])
+        cutoff = min(lens)-1
+
+        # create the blank plot 
+        plt.style.use('default')
+        params = {'mathtext.default': 'regular' }          
+        plt.rcParams.update(params)
+        fig = plt.figure(figsize=(15,6))
+        # define the xs list 
+        xs = np.arange(cutoff)   
+
+        # for each of the dataframes inside the ChunkyMonkey object, targets, and names,
+        for s, name in zip(range(len(rat.success)), self.names):
+            # define the chunk we are looking at (will be X00 trial data dataframe)
+            chunk = (rat.success[s])[:cutoff]
+            # plot the mean IPI within the chunk
+            plt.bar(xs*3+s, height = chunk['Mean'].to_numpy(), label = name, color = self.colors[s])
+            # for i rats, (the # of columns in the chunk - 1 (for the mean column)) 
+            for i in range(chunk.shape[1]-1):
+                plt.scatter((xs*3)+s, chunk[f'Rat_{i}_{self.targets[s]}'].to_numpy(), s=6, c = 'black')
+        # plot one set again with a label 
+        plt.scatter((xs*3)+s, chunk[f'Rat_{i}_{self.targets[s]}'].to_numpy(), s=6, c = 'black', label = "Individual Rats' Performance")
+
+        # Relabel the ticks to be the session number. 
+        plt.xticks(ticks=(xs*3)+1/2, labels=xs+1) 
+        
+        # do plot formatting and aesthetics
+        frame = plt.legend(loc='upper left', bbox_to_anchor=(0, -0.15), fancybox=True, ncol=4).get_frame()
+        frame.set_edgecolor("black")
+        frame.set_boxstyle('square')
+
+        title = plt.title(f'Success Rate of {self.targets[0]}ms & {self.targets[1]}ms target trials ')
+
+        plt.ylabel(f'Percent of trials within {error}% of Target IPI')
+        plt.xlabel("Nth group of 1000 trials") 
+
+        # if the savepath is defined, save the figure.
+        if savepath != False:
+            plt.savefig(savepath, bbox_extra_artists=(frame, title), bbox_inches = 'tight') 
+        plt.show()
+        plt.show()

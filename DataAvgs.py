@@ -229,6 +229,21 @@ class DataAvgs:
             newpress = pd.concat(data)
             # use builtin .groupby() to stack the frames and then average. 
             avg = newpress.groupby(level=0).mean()
+            # If the number of columns in newpress is not equal to the # of columns in 'avg', then column(s) have been dropped. 
+            if len(avg.columns) != len(newpress.columns):
+                # pull the columns from the data
+                col1 = data[0].columns.to_list()
+                # pull the columns from the averaged data, 
+                col2 = avg.columns.to_list()
+                # find the differences between the two. 
+                diff = list(set(col1).difference(col2))
+                # pull the columns that have been dropped out of the newpress frame
+                missing = data[0].copy()[diff]
+                # append that column to the avg dataframe. 
+                for i in range(len(diff)):
+                    avg[f'{missing.columns[i]}'] = missing.iloc[:,i]
+                # then continue... 
+
             # reset the indicies to be from 0 to N
             avg.reset_index()
             # automatically gets rid of the target column if we had it, so add that on for future reference 
@@ -263,10 +278,10 @@ class DataAvgs:
         targs = [] 
         for i in range(len(self.targetframe)):
             # append all of the target values inside the frame to the targs list
-            targs.append(self.targetframe[i].iloc[0,7])
+            targs.append(self.targetframe[i]['target'][0])
 
         # if the target does not exist within this data, 
-        if 500 not in targs:
+        if target not in targs:
             # return none if it's not
             return False
         # otherwise iterate thru the targetframes to find the i. 
@@ -275,7 +290,7 @@ class DataAvgs:
             i=0 
             # while i is less than the number of targets,
             while i < len(self.targetframe):
-                if (self.targetframe[i]).iloc[0,7] == target:
+                if (self.targetframe[i]['target'][0]) == target:
                     break
                 else: 
                     i += 1
@@ -422,33 +437,27 @@ class DataAvgs:
         """
 
         i = self.Find_i(target1)
-        # if i is none, skip and return a none
-        if i == False:
-            return False 
-        else:
-            t1 = self.targetframe[i]['interval'].to_numpy()
+        t1 = self.targetframe[i]['interval'].to_numpy()
 
         i = self.Find_i(target2)
-        # if i is none, skip and return a none
-        if i == False:
-            return np.asarray([])
-        else:
-            t2 = self.targetframe[i]['interval'].to_numpy()
+        t2 = self.targetframe[i]['interval'].to_numpy()
         
         # cut the trials to the same length 
         if len(t1) > len(t2):
             cut = len(t2)
-        if len(t2) > len(t1):
+        elif len(t1) < len(t2):
             cut = len(t1)
-
+        elif len(t1) == len(t2):
+            cut = len(t1) 
+        
         tt1 = t1[:cut]
         tt2 = t2[:cut] 
         
-        # find difference of each tap
-        d_ipi = (tt2-tt1)
+        # find difference of each tap, with absolute value if target2 < target1 
+        d_ipi = abs((tt2-tt1))
         # divide by the supposed max distance if norm is true
         if norm != False:
-            d_ipi = d_ipi/(target2-target1) 
+            d_ipi = d_ipi/abs((target2-target1))
         # then take the moving average to smooth everything out. 
         d_ipi = pd.Series(d_ipi).rolling(window, min_periods=minwin).mean()
 
@@ -660,7 +669,7 @@ class ChunkyMonkey:
         # for each rat
         for rat in rats:
             # grab the list of targets 
-            tar = (rat.set_of('target')).tolist()
+            tar = list(set(rat.df['target'].to_numpy()))
             # append the data into a flat list
             for item in tar: 
                 targets.append(item)
