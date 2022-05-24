@@ -32,7 +32,7 @@ class DataHolder:
             instance of DataHolder class, essentially a dataframe
         """
 
-        if isinstance(h5,type(None)):
+        if isinstance(h5, type(None)):
 
             # If the initialization of the class is left blank, 
             # open a file dialog to make the user chose the press info file. 
@@ -61,7 +61,7 @@ class DataHolder:
         self.df = self.df.copy().iloc[dropfirst:,:]
 
 
-    def __getitem__(self,key):
+    def __getitem__(self, key):
         """ Python Internal. 
         Indexing method of the class"""
 
@@ -104,7 +104,7 @@ class DataHolder:
                 
         return outdf
 
-    def _init_df(self,drop):
+    def _init_df(self, drop):
         """
         Initialize the dataframe with presses and sessions, uses the values for self.press_dir and self.sess_dir to make dataframes.
 
@@ -122,7 +122,7 @@ class DataHolder:
         self.df = self._project_cols(presses,sessions,'n_sess',['starttime','sess_size'])
         self._optimize_dtypes()
 
-    def _sess_start_indices(self,presslist):
+    def _sess_start_indices(self, presslist):
         """ return index of first press in each session within a list of presses """
         sesslist = np.sort(list(set(presslist['n_sess'])))
         indexlist = [0]
@@ -195,6 +195,7 @@ class DataHolder:
                     out_dict[key] = out_dict[key] + [eval(key)] * trials
 
         return pd.DataFrame(out_dict)
+    
     @property
     def columns(self):
         return self.df.columns
@@ -204,7 +205,7 @@ class DataHolder:
         """Return a list of columns that pertain to session values."""
         return [i for i in self.columns if i in ['target','upper','lower','next_target','prev_target','n_sess']]
         
-    def get_by_target(self,target,col =slice(None)):
+    def get_by_target(self, target, col = slice(None)):
         """ Returns all of the presses that have a particular target. 
     
         Parameters
@@ -219,11 +220,9 @@ class DataHolder:
         out : dataframe or series
             dataframe containing presses that have the desired target and desired columns.
         """
-        # calls press_is function to return the dataframe. 
         return self.df.loc[self.df['target'] == target][col]
 
-
-    def set_of(self,col,sort = True):
+    def set_of(self, col, sort = True):
         """ Returns list of all data within specified column without duplicates. 
     
         Parameters
@@ -244,7 +243,6 @@ class DataHolder:
 
         else: 
             return list(set(self[col]))
-
 
     def press_is(self, conditional_string):
         """ Returns numbered list of all presses whose columns meet particular values
@@ -278,8 +276,7 @@ class DataHolder:
         # use pandas to apply formated conditional string and extract presses
         return self.df.loc[eval(conditional_string)]
 
-
-    def get_first_press(self,conditional_string):
+    def get_first_press(self, conditional_string):
         """ Get the row of the first press that matches specific criteria
         
         Parameters 
@@ -293,7 +290,6 @@ class DataHolder:
         """
         return self.press_is(conditional_string).iloc[0]
 
-       
     def get_sess_params(self, n, col = slice(None)):
         """ Get the paramaters for a specific session
         
@@ -312,8 +308,7 @@ class DataHolder:
         """
         return self.get_first_press(f"n_sess == {n}")[self.sess_cols][col]
 
-
-    def all_sessions(self,col):
+    def all_sessions(self, col):
         """ get the value of a parameter for all sessions
         
         Parameters 
@@ -327,7 +322,6 @@ class DataHolder:
             the value of the column in every session
         """
         return [self.get_sess_params(i)[col] for i in self.set_of('n_sess')]
-    
 
     def get_sess(self, n_sess):
         """ Get all presses within a particular session
@@ -343,7 +337,6 @@ class DataHolder:
             all presses within the requested session
         """
         return self.df[self.df['n_sess'] == n_sess]
-
 
     def change_target(self, old, new, save = False):
         """ change the target interval wherever it appears
@@ -370,7 +363,6 @@ class DataHolder:
         if save:
             self.overwrite_sess()
     
-
     def drop_sess(self, n, save = False):
         """ delete a session
         
@@ -398,7 +390,6 @@ class DataHolder:
         if save:
             self.overwrite_press()
             self.overwrite_sess()
-
 
     def stats(self, stat, column, save = False):
         """ Compute a column of session statistics about a column from presses
@@ -432,7 +423,6 @@ class DataHolder:
             self.overwrite_sess(**{column + "_" + stat : statcol})
 
         return statcol
-
 
     def TrialSuccess(self, error, avgwindow = 100):
         """ Returns an array with the number of successes in each session where the trial IPI was 
@@ -470,7 +460,6 @@ class DataHolder:
         avgs = (df.rolling(avgwindow, min_periods=1).mean())*100
         # return the averages
         return avgs
-
 
     def MovingAverage(self, columnname, win = 100, minwin = 10, err = 20, box = 300):
         """ Returns an array with the moving average of all trial data from the specified column/data. 
@@ -553,7 +542,6 @@ class DataHolder:
             # return the dataframe as a numpy array 
             return avgs
 
-
     def SessionSuccess(self, error, avgwindow = 5):
         """ Returns an array with the percentage of successes in each session where the trial IPI was 
         +- error % away from the target IPI. 
@@ -596,7 +584,6 @@ class DataHolder:
         # return the two numpy lists.
         return success, avgs
 
-
     def overwrite_sess(self,**kwargs):
         """ overwrite the session csv using the location given when the class was instantiated
         
@@ -619,7 +606,6 @@ class DataHolder:
                 sessions[key] = val
         sessions.to_csv(self.sess_dir)
 
-
     def overwrite_press(self):
         """ overwrite the presses csv using the location given when the class was instantiated
         
@@ -637,4 +623,3 @@ class DataHolder:
         for col in self.press_cols:
             presses[col] = self.df[col]
         self.presses.to_csv(self.press_dir)
-

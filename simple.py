@@ -84,7 +84,28 @@ def fnt(n):
     return int(np.floor(n))
 
 #replaces all instances of repl inside instr with replwith, checks that repl is not part of a larger word
-def sreplace(instr,repl,replwith,max_iterations=100,count_as_alpha = []):
+def sreplace(instr, repl, replwith, max_iterations=100, count_as_alpha = []):
+    """replaces all instances of `repl` inside `instr` with `replwith`, checks that repl is not part of a larger word.
+    
+    Parameters
+    ----------
+    instr : str
+        string to perform replacements in.
+    repl : str
+        string to replace.
+    replwith : str
+        what to replace with
+    max_iterations : int, optional
+        function will loop through string and make replacements this many times. 
+        This argument is mainly to avoid problems if `replwith` is inside `repl` as this will cause an infinite loop.
+    count_as_alpha : list, optional
+        Characters that count as letters, normally only a-z counts.
+    
+    Returns
+    -------
+    outstr : str
+        A version of `instr` where all versions of `repl` that are not part of larger words get replaced with `replwith`."""
+    
     checkalpha = lambda x:(x.isalpha() or (x in count_as_alpha))
     #add that blank incase the thing i want to replace is at the end
     outstr = instr + ' '
@@ -246,7 +267,7 @@ def lin_fit(ys,xs = "Default"):
 
 #return the slope of convergence subdivisions in a dataset
 def var_convergence(vals,n = 4):
-    sub_vars = sub_variance(vals,n)
+    sub_vars = sub_variation(vals,n)
     m = lin_fit(sub_vars)[2]
     return m
 
@@ -282,11 +303,22 @@ def OrdToDate(ord,rnd = 'hour'):
 
 #round a date to the nearest value specified by rnd
 def rnddate(date,rnd = 'hour'):
+    """Round a date to the nearest value specified by `rnd`.
+    
+    Parameters
+    ----------
+    date : datetime.datetime
+        Date to be rounded
+    rnd : str, optional
+        Nearest increment to round to. Can be second, hour, or minute. Defaults to hour."""
     outdate = date
-    if rnd  in ['second','hour','minute']:     
-        outdate = outdate.replace(second = rndnt(outdate.second + (outdate.microsecond * 1e-6)),microsecond=0)
+    if rnd  in ['second','hour','minute']:
+        newseconds = rndnt(outdate.second + (outdate.microsecond * 1e-6))
+        outdate = outdate.replace(second = 0,microsecond=0) + datetime.timedelta(seconds = newseconds)
     if rnd  in ['hour','minute']:
-        outdate = outdate.replace(minute = rndnt(outdate.minute + (outdate.second/60)),second=0)
+        newminutes = rndnt(outdate.minute + (outdate.second/60))
+        outdate = outdate.replace(minute = 0,second=0) + datetime.timedelta(minutes=newminutes)
     if rnd  in ['hour']:
-        outdate = outdate.replace(hour = rndnt(outdate.hour + (outdate.minute/60)),minute=0)
+        newhours = rndnt(outdate.hour + (outdate.minute/60))
+        outdate = outdate.replace(hour = 0,minute=0) + datetime.timedelta(hours = newhours)
     return outdate

@@ -12,5 +12,5 @@ Takes in multiple DataHolder objects and averages them by group.
 __DataAvgs_Plot.py__: 
 Takes in objects produced by the DataAvgs class and creates plots (IPI, CV, SR, etc.) 
 
-__init.py, process_csv.py, and simple.py__: 
+__init__.py, process_csv.py, and simple.py__: 
 Referenced in the above files, each does behind-the-scenes work. 
