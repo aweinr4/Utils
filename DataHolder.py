@@ -20,7 +20,7 @@ class DataHolder:
         sessions : str, optional
             string containing the directory of the csv with session info, by default will open a ui to select file.
         dropafter : int, optional
-            defaults to 0, this won't drop anything
+            defaults to 0, this won't drop anything.
         dropfirst : int, optional
             drop this number of trials from the beginning of the dataframe
         df : pd.Dataframe or None, optional
@@ -114,7 +114,7 @@ class DataHolder:
             drops sessions passed this number, ignores if drop = 0."""
         presses = pd.read_csv(self.press_dir)
         sessions = pd.read_csv(self.sess_dir)
-        self.sess_cols = sessions.drop(['starttime','sess_size'],axis=1).columns
+        # self.sess_cols = sessions.drop(['starttime','sess_size'],axis=1).columns
         self.press_cols = presses.columns
         if not drop == 0:
             presses = presses.loc[presses['n_sess'] <= drop]
