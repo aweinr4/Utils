@@ -1,12 +1,13 @@
 
 from .simple import *
 import pandas as pd
+import h5py as h5
 
 class DataHolder:
     """ Class for holding the rat press data files """
 
 
-    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0):
+    def __init__(self, presses = "get", sessions = "get", dropafter = 0, dropfirst = 0, h5 = None):
         """ Initialization takes two csv files, one with press informaion and one with session information. 
         A single dataframe is created that stores all the information about each press.
         If there is a drop after argument, all of the sessions after that number will be dropped 
@@ -19,7 +20,11 @@ class DataHolder:
         sessions : str, optional
             string containing the directory of the csv with session info, by default will open a ui to select file.
         dropafter : int, optional
-            defaults to 0, this won't drop anything 
+            defaults to 0, this won't drop anything.
+        dropfirst : int, optional
+            drop this number of trials from the beginning of the dataframe
+        df : pd.Dataframe or None, optional
+            gives the option to skip csvs entirely and use a dataframe directly, if this value is included then presses and sessions are ignored.
 
         Returns
         -------
@@ -27,24 +32,30 @@ class DataHolder:
             instance of DataHolder class, essentially a dataframe
         """
 
-        # If the initialization of the class is left blank, 
-        # open a file dialog to make the user chose the press info file. 
-        if presses == "get":
-            self.press_dir = get_file()
-        # If the user already indicated a file, use it.
-        else:
-            self.press_dir = presses
+        if isinstance(h5,type(None)):
 
-        # If the initialization of the class is left blank, 
-        # open a file dialog to make the user chose the press info file.
-        if sessions == "get":
-            self.sess_dir = get_file()
-        # If the user already indicated a file, use it.
-        else:
-            self.sess_dir = sessions
+            # If the initialization of the class is left blank, 
+            # open a file dialog to make the user chose the press info file. 
+            if presses == "get":
+                self.press_dir = get_file()
+            # If the user already indicated a file, use it.
+            else:
+                self.press_dir = presses
 
-        # do preprocessing of the dataframes. 
-        self._init_df(dropafter)
+            # If the initialization of the class is left blank, 
+            # open a file dialog to make the user chose the press info file.
+            if sessions == "get":
+                self.sess_dir = get_file()
+            # If the user already indicated a file, use it.
+            else:
+                self.sess_dir = sessions
+
+            # do preprocessing of the dataframes. 
+            self._init_df(dropafter)
+
+        else:
+            self.df = self._df_from_h5(h5)
+            self._optimize_dtypes()
 
         # drop beginning trials if nececary 
         self.df = self.df.copy().iloc[dropfirst:,:]
@@ -103,7 +114,7 @@ class DataHolder:
             drops sessions passed this number, ignores if drop = 0."""
         presses = pd.read_csv(self.press_dir)
         sessions = pd.read_csv(self.sess_dir)
-        self.sess_cols = sessions.drop(['starttime','sess_size'],axis=1).columns
+        # self.sess_cols = sessions.drop(['starttime','sess_size'],axis=1).columns
         self.press_cols = presses.columns
         if not drop == 0:
             presses = presses.loc[presses['n_sess'] <= drop]
@@ -144,13 +155,54 @@ class DataHolder:
             'prev_target' : 'category'
         }
 
-        self.df['time'] = pd.to_datetime(self.df['time'])
+        if 'time' in self.df.columns:
+            self.df['time'] = pd.to_datetime(self.df['time'])
         for key,val in typedict.items():
-            self.df[key] = self.df[key].astype(val)
+            if key in self.df.columns:
+                self.df[key] = self.df[key].astype(val)
 
+    def _df_from_h5(self, loc):
+        """Return a df similiar to those used by DataHolder from the type of h5 file created by parser.
+        
+        Parameters
+        ----------
+        loc : str
+            Path to h5 file.
+    
+        Returns
+        -------
+        out : pd.DataFrame
+            Datafrom from h5 file."""
+
+        out_dict = {i:[] for i in ['tap_1_len','tap_2_len','reward','n_sess','n_in_sess','interval','ratio','loss','target','upper','lower']}
+        with h5.File(loc, 'r') as f:
+            for dset in f:
+                t_1_len = f[dset]['Tap 1']['Off'] - f[dset]['Tap 1']['On']
+                interval = f[dset]['Interval'][:].astype(float)
+                trials = f[dset].attrs['Trials in Session']
+                target = f[dset].attrs['Target']
+                upper = f[dset].attrs['Upper']
+                lower = f[dset].attrs['Lower']
+                out_dict['tap_1_len'] = out_dict['tap_1_len'] + list(t_1_len)
+                out_dict['tap_2_len'] = out_dict['tap_2_len'] + list(f[dset]['Tap 2']['Off'] - f[dset]['Tap 2']['On'])
+                out_dict['reward'] = out_dict['reward'] + list(f[dset]['Reward']['Value'])
+                out_dict['n_sess'] = out_dict['n_sess'] + [int(dset.split('_')[-1])] * trials
+                out_dict['n_in_sess'] = out_dict['n_in_sess'] + list(range(1,trials+1))
+                out_dict['interval'] = out_dict['interval'] + list(interval)
+                out_dict['ratio'] = out_dict['ratio'] + list(t_1_len/interval)
+                out_dict['loss'] = out_dict['loss'] + list((interval - target)/target)
+                for key in ['target','upper','lower']:
+                    out_dict[key] = out_dict[key] + [eval(key)] * trials
+
+        return pd.DataFrame(out_dict)
     @property
     def columns(self):
         return self.df.columns
+
+    @property
+    def sess_cols(self):
+        """Return a list of columns that pertain to session values."""
+        return [i for i in self.columns if i in ['target','upper','lower','next_target','prev_target','n_sess']]
         
     def get_by_target(self,target,col =slice(None)):
         """ Returns all of the presses that have a particular target. 
@@ -311,7 +363,9 @@ class DataHolder:
         ---
         none
         """
-        self.df[self.df['target'] == old,'target'] = new
+        for n in self.df.index:
+            if self.df.loc[n,'target'] == old:
+                self.df.loc[n,'target'] = new
 
         if save:
             self.overwrite_sess()

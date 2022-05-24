@@ -18,22 +18,69 @@ def get_file():
     #return file location as string
     return loc
 
-# check if integer is odd
 def isodd(n):
+    """Determine if an integer is odd.
+    
+    Parameters
+    ----------
+    n : int
+        Value to check.
+        
+    Returns
+    -------
+    out : bool
+        Wether or not `n` is odd.
+        
+    Raises
+    ------
+    TypeError 
+        Raised if `n` is not int."""
+    
     if not isinstance(n,int):
-        raise Exception(f'type {type(n)} is invalid, must be integer')
+        raise TypeError(f'type {type(n)} is invalid, must be integer')
     return n%2 > 0
 
-#returns rounded number as integer
 def rndnt(n):
+    """Round a value, 0.5 rounds up to 1.
+        
+    Parameters
+    ----------
+    n : numeric
+        value to round.
+
+    Returns
+    -------
+    out : int
+        Rounded value."""
+
     return int(np.floor(n+0.5))
 
-#returns closest integer rounding up
 def ceil(n):
+    """Return closest integer rounding up.
+        
+    Parameters
+    ----------
+    n : numeric
+        value to round.
+
+    Returns
+    -------
+    out : int
+        Rounded value."""
     return int(np.ceil(n))
 
-#closest integer rounding down
 def fnt(n):
+    """Return closest integer rounding down.
+        
+    Parameters
+    ----------
+    n : numeric
+        value to round.
+
+    Returns
+    -------
+    out : int
+        Rounded value."""
     return int(np.floor(n))
 
 #replaces all instances of repl inside instr with replwith, checks that repl is not part of a larger word
@@ -68,11 +115,37 @@ def sreplace(instr,repl,replwith,max_iterations=100,count_as_alpha = []):
     # the [0:-1] removes that space i put at the end
     return outstr[0:-1]
 
-#apply a function to subsets of size divsize of a larger list 
-#return list of function applied to each subset
-# may provide x values to have those returned for the central x value of each subset
-#manage extras choses what to do if list cannot be subdivided exactly by divsize
-def func_on_subsets(vals,divsize,func,manage_extras = "auto",xs = None):
+def func_on_subsets(vals, divsize, func, manage_extras = "auto", xs = None):
+    """apply a function to subdivisions of size `divsize` of a larger list.
+    
+    Parameters
+    ----------
+    vals : iterable
+        list of values to apply function on subdivisions of.
+
+    func : function
+        function to convolve over `vals`
+    
+    divsize : int
+        Size of each subset
+
+    manage_extras : str, optional
+        How to approach if list does not subdivide exactly into subdivisions.
+            "auto" - keep last subdivision if size is <divsize/2
+            "keep" - keep last subdivision no matter the size
+            "drop" - drop last subdivision no matter the size
+
+    xs : list, optional
+        x values of vals, if included then `outxs` will be included in return value.
+
+    Returns
+    -------
+    outlist : list
+        List of `func` applied to each subdivision of `vals`.
+
+    outxs : list, optional
+        List of x values corresponding to central x value of each subdivision."""
+
     #if list does not subdivide exactly chose what to do with extra value
     manage_extras = {"auto":rndnt,"keep":ceil,"drop":fnt}[manage_extras]
     #compute the unsupplied value or give error if both or neither were given
@@ -98,14 +171,43 @@ def func_on_subsets(vals,divsize,func,manage_extras = "auto",xs = None):
 
 #convolve a function over a list you can include a list of x values to get those returned
 def func_convolve(vals,func,divsize,xs = None):
+    """Convolve a function over a list.
+    
+    Parameters
+    ----------
+    vals : iterable
+        list of values to convolve function over.
+
+    func : function
+        function to convolve over `vals`
+    
+    divsize : int
+        Size of convolution window
+
+    xs : list, optional
+        x values of vals, if included then `outxs` will be included in return value.
+
+    Returns
+    -------
+    outlist : list
+        Result of convolution.
+
+    outxs : list, optional
+        List of x values corresponding to central x value of each value from the convolution.
+        
+    Raises
+    ------
+    ValueError 
+        Raised if `divsize` is not odd."""
+    
     if not isodd(divsize):
-        raise Exception('divsize must be odd')
+        raise ValueError('divsize must be odd')
     outlist = [func(vals[i:i+divsize]) for i in range(0,len(vals)-divsize+1)]
     if not isinstance(xs,type(None)):
         start =int((divsize/2) - 0.5)
         end = int((-divsize/2) + 0.5)
-        xs = xs[start:end]
-        return outlist,xs
+        outxs = xs[start:end]
+        return outlist, outxs
     return outlist
 
 #returns the variation of each  of n sub-divisions of a dataset, variation values are normalized using the variation of the whole set
@@ -116,6 +218,22 @@ def sub_variation(vals,n):
 
 #simple boxcar filter
 def boxcar(vals,divsize,**kwargs):
+    """Applies a boxcar mean to a list of values.
+        
+    Parameters
+    ----------
+    vals : iterable
+        values to apply boxcar on.
+
+    divsize : int
+        Size of each boxcar.
+
+    **kwargs : see func_on_subsets
+
+    Returns
+    -------
+    out : int
+        Result of applied boxcar."""
     return func_on_subsets(vals,divsize,np.mean,**kwargs)
 
 #performs a linear fit and returns the datapoints and the slope/intercept
@@ -134,6 +252,24 @@ def var_convergence(vals,n = 4):
 
 #percentage of values within a range
 def perc_within(vals,lower,upper):
+    """Get percentage of values within a range.
+    
+    Parameters
+    ----------
+    vals : iterable
+        List of values to pull from.
+
+    lower : numeric
+        lower bound.
+
+    upper : numeric
+        upper bound
+        
+    Returns
+    -------
+    out : float
+        percentage of values in `vals` that fall between `upper` and `lower`."""
+    
     n = len(vals)
     s = sum(1 for i in vals if upper>=i >= lower)
     return s/n
